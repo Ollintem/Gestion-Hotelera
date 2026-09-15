@@ -1,7 +1,6 @@
 <?php
 
-test('guests are redirected to the login page', function () {
+test('los usuarios pueden ver la landing page', function () {
     $response = $this->get('/');
-
-    $response->assertRedirect(route('login'));
+    $response->assertStatus(200);
 });
