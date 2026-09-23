@@ -1,13 +1,19 @@
 <div>
     @if ($mensajeExito)
-        <flux:callout variant="success" icon="check-circle" class="mb-4">
-            <p>{{ $mensajeExito }}</p>
-        </flux:callout>
+        <div class="mb-4 animate-fade-in">
+            <flux:callout variant="success" icon="check-circle">
+                <p>{{ $mensajeExito }}</p>
+            </flux:callout>
+        </div>
     @endif
 
     @include('habitaciones.partials.header')
 
-    @include('habitaciones.partials.table')
+    @if ($vista === 'cuadricula')
+        @include('habitaciones.partials.cuadricula')
+    @else
+        @include('habitaciones.partials.lista')
+    @endif
 
     @include('habitaciones.partials.modal-form')
 </div>

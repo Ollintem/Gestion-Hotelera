@@ -2,11 +2,19 @@
      MODAL: CREAR / EDITAR HABITACIÓN
      ====================================================== --}}
 
-<flux:modal name="habitacion-form" wire:model="mostrarModal" class="w-full max-w-lg">
+@php
+    $claseSelect = 'block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700';
+@endphp
+
+<flux:modal name="habitacion-form" wire:model="mostrarModal" class="w-full max-w-2xl">
     <form wire:submit="guardar">
         <div class="mb-6">
-            <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $habitacionId ? 'Editar habitación' : 'Nueva habitación' }}</flux:heading>
-            <flux:subheading class="!text-slate-600 !font-medium">Completa los datos de la habitación.</flux:subheading>
+            <flux:heading size="lg" class="!text-slate-800 !font-semibold dark:!text-slate-100">
+                {{ $habitacionId ? 'Editar habitación' : 'Agregar habitación' }}
+            </flux:heading>
+            <flux:subheading class="!text-slate-600 !font-medium dark:!text-slate-400">
+                Completa los datos de la habitación.
+            </flux:subheading>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
@@ -17,15 +25,9 @@
             </flux:field>
 
             <flux:field>
-                <flux:label>Piso</flux:label>
-                <flux:input type="number" min="1" wire:model="piso" required />
-                <flux:error name="piso" />
-            </flux:field>
-
-            <flux:field class="sm:col-span-2">
                 <flux:label>Tipo de habitación</flux:label>
-                <select wire:model="tipo_habitacion_id" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
-                    <option value="">Selecciona un tipo…</option>
+                <select wire:model="tipo_habitacion_id" required class="{{ $claseSelect }}">
+                    <option value="">Selecciona un tipo...</option>
                     @foreach ($tipos as $tipo)
                         <option value="{{ $tipo->id }}">{{ $tipo->nombre }} — ${{ number_format($tipo->precio_base, 2) }}</option>
                     @endforeach
@@ -33,23 +35,67 @@
                 <flux:error name="tipo_habitacion_id" />
             </flux:field>
 
-            <flux:field class="sm:col-span-2">
-                <flux:label>Estado</flux:label>
-                <select wire:model="estado" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
+            <flux:field>
+                <flux:label>Piso</flux:label>
+                <flux:input type="number" min="1" wire:model="piso" required />
+                <flux:error name="piso" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Capacidad (personas)</flux:label>
+                <flux:input type="number" min="1" wire:model="capacidad" placeholder="Se toma del tipo..." />
+                <flux:error name="capacidad" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Precio por noche</flux:label>
+                <flux:input type="number" step="0.01" min="0" wire:model="precio_por_noche" placeholder="0.00" />
+                <flux:error name="precio_por_noche" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Estado inicial</flux:label>
+                <select wire:model="estado" class="{{ $claseSelect }}">
                     @foreach ($estados as $estado)
                         <option value="{{ $estado }}">{{ $estado }}</option>
                     @endforeach
                 </select>
                 <flux:error name="estado" />
             </flux:field>
+
+            <flux:field class="sm:col-span-2">
+                <flux:label>Descripción</flux:label>
+                <textarea
+                    wire:model="descripcion"
+                    rows="3"
+                    placeholder="Descripción de la habitación..."
+                    class="block w-full resize-none rounded-xl border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700"
+                ></textarea>
+                <flux:error name="descripcion" />
+            </flux:field>
+
+            <flux:field class="sm:col-span-2">
+                <flux:label>URL de fotografía</flux:label>
+                <flux:input type="url" wire:model="foto_url" placeholder="https://imagenes.ejemplo.com/habitacion.jpg" />
+                <flux:error name="foto_url" />
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Capacidad, precio, descripción y foto se sincronizan con el tipo de habitación seleccionado.
+                </p>
+            </flux:field>
         </div>
 
         <div class="mt-6 flex items-center justify-end gap-3">
             <flux:button type="button" variant="ghost" wire:click="cerrarModal">Cancelar</flux:button>
-            <flux:button type="submit" variant="primary">
-                <flux:icon.check class="size-4" />
-                Guardar
-            </flux:button>
+            <button
+                type="submit"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-300 ease-out hover:scale-[1.02] hover:bg-amber-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2 active:scale-95 dark:bg-amber-600 dark:hover:bg-amber-700"
+            >
+                <span wire:loading.remove wire:target="guardar">
+                    <flux:icon.check class="size-4" />
+                </span>
+                <span wire:loading wire:target="guardar">Guardando...</span>
+                <span wire:loading.remove wire:target="guardar">Guardar habitación</span>
+            </button>
         </div>
     </form>
 </flux:modal>
