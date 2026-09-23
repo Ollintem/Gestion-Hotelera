@@ -26,15 +26,12 @@
             <label for="filtro-estado" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Estado
             </label>
-            <select
-                id="filtro-estado"
-                wire:model.live="filtroEstado"
-                class="block w-full rounded-xl border-0 bg-white py-2.5 pl-3.5 pr-8 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700"
-            >
-                <option value="todos">Todos</option>
-                <option value="activos">Activos</option>
-                <option value="inactivos">Inactivos</option>
-            </select>
+            <x-dropdown
+                    id="filtro-estado"
+                    wire:model.live="filtroEstado"
+                    :selected="$filtroEstado"
+                    :options="['todos' => 'Todos', 'activos' => 'Activos', 'inactivos' => 'Inactivos']"
+                />
         </div>
 
         <div class="flex items-end">

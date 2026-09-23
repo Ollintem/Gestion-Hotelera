@@ -12,9 +12,7 @@ use Spatie\Permission\Models\Role;
 #[Layout('components.layouts.app')]
 class GestionRoles extends Component
 {
-    public bool $mostrarModalCrear = false;
-
-    public bool $mostrarModalEditar = false;
+    public string $pagina = 'index';
 
     public bool $mostrarModalEliminar = false;
 
@@ -32,7 +30,11 @@ class GestionRoles extends Component
 
     public function render(): View
     {
-        return view('roles.index');
+        return match ($this->pagina) {
+            'crear' => view('roles.create'),
+            'editar' => view('roles.edit'),
+            default => view('roles.index'),
+        };
     }
 
     /**
@@ -89,12 +91,12 @@ class GestionRoles extends Component
     {
         $this->reset('nombre');
         $this->resetValidation();
-        $this->mostrarModalCrear = true;
+        $this->pagina = 'crear';
     }
 
     public function cerrarModalCrear(): void
     {
-        $this->mostrarModalCrear = false;
+        $this->pagina = 'index';
         $this->reset('nombre');
         $this->resetValidation();
     }
@@ -134,13 +136,13 @@ class GestionRoles extends Component
         $this->rolIdEditar = $rol->id;
         $this->nombre = $rol->name;
         $this->resetValidation();
-        $this->mostrarModalEditar = true;
+        $this->pagina = 'editar';
         $this->reset('mensajeError');
     }
 
     public function cerrarModalEditar(): void
     {
-        $this->mostrarModalEditar = false;
+        $this->pagina = 'index';
         $this->reset('rolIdEditar', 'nombre');
         $this->resetValidation();
     }

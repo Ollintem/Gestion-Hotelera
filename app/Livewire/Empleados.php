@@ -20,6 +20,8 @@ class Empleados extends Component
 {
     use WithPagination;
 
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $empleadoId = null;
@@ -98,10 +100,16 @@ class Empleados extends Component
             ->orderBy('nombre')
             ->paginate(10);
 
-        return view('empleados.index', [
+        $datos = [
             'empleados' => $empleados,
             'turnos' => self::TURNOS,
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('empleados.create', $datos),
+            'editar' => view('empleados.edit', $datos),
+            default => view('empleados.index', $datos),
+        };
     }
 
     /**
@@ -307,7 +315,7 @@ class Empleados extends Component
         $this->turno = 'Mañana';
         $this->resetValidation();
         $this->reset('mensajeExito', 'mensajeError');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -328,12 +336,12 @@ class Empleados extends Component
         $this->contrasena = '';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset([
             'empleadoId',
             'nombre',

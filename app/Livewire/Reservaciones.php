@@ -13,6 +13,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Reservaciones extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $reservaId = null;
@@ -34,12 +36,18 @@ class Reservaciones extends Component
 
     public function render(): View
     {
-        return view('reservaciones.index', [
+        $datos = [
             'reservas' => Reserva::with(['cliente', 'habitaciones'])->latest()->get(),
             'clientes' => Cliente::orderBy('nombre')->get(),
             'habitaciones' => Habitacion::with('tipo')->orderBy('numero_habitacion')->get(),
             'estados' => ['Pendiente', 'Confirmada', 'Cancelada', 'Finalizada'],
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('reservaciones.create', $datos),
+            'editar' => view('reservaciones.edit', $datos),
+            default => view('reservaciones.index', $datos),
+        };
     }
 
     public function crear(): void
@@ -49,7 +57,7 @@ class Reservaciones extends Component
         $this->monto_total = '0';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -65,12 +73,12 @@ class Reservaciones extends Component
         $this->habitacion_ids = $reserva->habitaciones()->pluck('habitaciones.id')->all();
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['reservaId', 'cliente_id', 'check_in', 'check_out', 'habitacion_ids']);
         $this->resetValidation();
     }

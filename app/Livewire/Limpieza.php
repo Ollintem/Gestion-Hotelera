@@ -12,6 +12,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Limpieza extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $tareaId = null;
@@ -28,12 +30,18 @@ class Limpieza extends Component
 
     public function render(): View
     {
-        return view('limpieza.index', [
+        $datos = [
             'tareas' => TareaLimpieza::with(['habitacion', 'usuario'])->latest()->get(),
             'habitaciones' => Habitacion::orderBy('numero_habitacion')->get(),
             'usuarios' => User::orderBy('name')->get(),
             'estados' => ['Pendiente', 'En Proceso', 'Completado'],
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('limpieza.create', $datos),
+            'editar' => view('limpieza.edit', $datos),
+            default => view('limpieza.index', $datos),
+        };
     }
 
     public function crear(): void
@@ -43,7 +51,7 @@ class Limpieza extends Component
         $this->estado = 'Pendiente';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -57,12 +65,12 @@ class Limpieza extends Component
         $this->notas = $tarea->notas ?? '';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['tareaId', 'habitacion_id', 'user_id', 'notas']);
         $this->resetValidation();
     }

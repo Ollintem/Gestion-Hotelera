@@ -8,6 +8,4 @@
     @include('clientes.partials.header')
 
     @include('clientes.partials.table')
-
-    @include('clientes.partials.modal-form')
 </div>

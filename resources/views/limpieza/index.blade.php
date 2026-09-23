@@ -8,6 +8,4 @@
     @include('limpieza.partials.header')
 
     @include('limpieza.partials.table')
-
-    @include('limpieza.partials.modal-form')
 </div>

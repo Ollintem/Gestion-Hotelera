@@ -10,6 +10,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Gastos extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $gastoId = null;
@@ -26,11 +28,17 @@ class Gastos extends Component
 
     public function render(): View
     {
-        return view('gastos.index', [
+        $datos = [
             'gastos' => Gasto::orderBy('fecha_gasto', 'desc')->get(),
             'total' => (float) Gasto::sum('monto'),
             'categorias' => ['Mantenimiento', 'Limpieza', 'Servicios', 'Personal', 'Insumos', 'Otros'],
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('gastos.create', $datos),
+            'editar' => view('gastos.edit', $datos),
+            default => view('gastos.index', $datos),
+        };
     }
 
     public function crear(): void
@@ -39,7 +47,7 @@ class Gastos extends Component
         $this->fecha_gasto = now()->format('Y-m-d');
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -53,12 +61,12 @@ class Gastos extends Component
         $this->fecha_gasto = $gasto->fecha_gasto->format('Y-m-d');
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['gastoId', 'concepto', 'monto', 'categoria', 'fecha_gasto']);
         $this->resetValidation();
     }

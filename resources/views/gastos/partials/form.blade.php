@@ -1,8 +1,8 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR GASTO
+     FORMULARIO COMPARTIDO: CREAR / EDITAR GASTO
      ====================================================== --}}
 
-<flux:modal name="gasto-form" wire:model="mostrarModal" class="w-full max-w-lg">
+<flux:card class="w-full max-w-2xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $gastoId ? 'Editar gasto' : 'Nuevo gasto' }}</flux:heading>
@@ -30,12 +30,13 @@
 
             <flux:field class="sm:col-span-2">
                 <flux:label>Categoría</flux:label>
-                <select wire:model="categoria" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
-                    <option value="">Selecciona…</option>
-                    @foreach ($categorias as $categoria)
-                        <option value="{{ $categoria }}">{{ $categoria }}</option>
-                    @endforeach
-                </select>
+                <x-dropdown
+                    wire:model="categoria"
+                    required
+                    :selected="$categoria"
+                    placeholder="Selecciona…"
+                    :options="array_combine($categorias, $categorias)"
+                />
                 <flux:error name="categoria" />
             </flux:field>
         </div>
@@ -48,4 +49,4 @@
             </flux:button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

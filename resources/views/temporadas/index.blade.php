@@ -8,6 +8,4 @@
     @include('temporadas.partials.header')
 
     @include('temporadas.partials.table')
-
-    @include('temporadas.partials.modal-form')
 </div>

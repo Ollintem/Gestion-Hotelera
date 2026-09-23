@@ -1,8 +1,8 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR RESERVACIÓN
+     FORMULARIO COMPARTIDO: CREAR / EDITAR RESERVACIÓN
      ====================================================== --}}
 
-<flux:modal name="reservacion-form" wire:model="mostrarModal" class="w-full max-w-2xl">
+<flux:card class="w-full max-w-3xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $reservaId ? 'Editar reservación' : 'Nueva reservación' }}</flux:heading>
@@ -12,12 +12,13 @@
         <div class="grid gap-4 sm:grid-cols-2">
             <flux:field class="sm:col-span-2">
                 <flux:label>Cliente</flux:label>
-                <select wire:model="cliente_id" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
-                    <option value="">Selecciona un cliente…</option>
-                    @foreach ($clientes as $cliente)
-                        <option value="{{ $cliente->id }}">{{ $cliente->nombreCompleto() }}</option>
-                    @endforeach
-                </select>
+                <x-dropdown
+                    wire:model="cliente_id"
+                    required
+                    :selected="$cliente_id"
+                    placeholder="Selecciona un cliente…"
+                    :options="$clientes->mapWithKeys(fn ($cliente) => [$cliente->id => $cliente->nombreCompleto()])->all()"
+                />
                 <flux:error name="cliente_id" />
             </flux:field>
 
@@ -35,11 +36,11 @@
 
             <flux:field>
                 <flux:label>Estado</flux:label>
-                <select wire:model="estado" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
-                    @foreach ($estados as $estado)
-                        <option value="{{ $estado }}">{{ $estado }}</option>
-                    @endforeach
-                </select>
+                <x-dropdown
+                    wire:model="estado"
+                    :selected="$estado"
+                    :options="array_combine($estados, $estados)"
+                />
                 <flux:error name="estado" />
             </flux:field>
 
@@ -70,4 +71,4 @@
             </flux:button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

@@ -1,8 +1,8 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR TEMPORADA
+     FORMULARIO COMPARTIDO: CREAR / EDITAR TEMPORADA
      ====================================================== --}}
 
-<flux:modal name="temporada-form" wire:model="mostrarModal" class="w-full max-w-lg">
+<flux:card class="w-full max-w-2xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $temporadaId ? 'Editar temporada' : 'Nueva temporada' }}</flux:heading>
@@ -43,4 +43,4 @@
             </flux:button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

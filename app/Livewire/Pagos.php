@@ -11,6 +11,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Pagos extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $pagoId = null;
@@ -29,12 +31,18 @@ class Pagos extends Component
 
     public function render(): View
     {
-        return view('pagos.index', [
+        $datos = [
             'pagos' => Pago::with(['reserva.cliente'])->latest()->get(),
             'reservas' => Reserva::with('cliente')->latest()->get(),
             'metodos' => ['Efectivo', 'Tarjeta', 'Transferencia'],
             'total' => (float) Pago::sum('monto'),
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('pagos.create', $datos),
+            'editar' => view('pagos.edit', $datos),
+            default => view('pagos.index', $datos),
+        };
     }
 
     public function crear(): void
@@ -43,7 +51,7 @@ class Pagos extends Component
         $this->metodo_pago = 'Efectivo';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -58,12 +66,12 @@ class Pagos extends Component
         $this->notas = $pago->notas ?? '';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['pagoId', 'reserva_id', 'monto', 'fecha_pago', 'notas']);
         $this->resetValidation();
     }

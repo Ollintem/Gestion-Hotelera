@@ -135,31 +135,13 @@
                         Rol
                     </label>
 
-                    <select
+                    <x-dropdown
                         id="role"
                         name="role"
-                        style="
-                            display: block;
-                            width: 100%;
-                            box-sizing: border-box;
-                            padding: 10px 12px;
-                            border: 1px solid #d1d5db;
-                            border-radius: 8px;
-                            font-size: 14px;
-                            background: white;
-                        "
-                    >
-                        <option value="">Selecciona un rol</option>
-
-                        @foreach ($roles as $role)
-                            <option
-                                value="{{ $role->name }}"
-                                {{ old('role') == $role->name ? 'selected' : '' }}
-                            >
-                                {{ $role->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                        :selected="(string) old('role', '')"
+                        placeholder="Selecciona un rol"
+                        :options="$roles->mapWithKeys(fn ($role) => [$role->name => $role->name])->all()"
+                    />
 
                     @error('role')
                         <p style="margin-top: 5px; color: #dc2626; font-size: 13px;">

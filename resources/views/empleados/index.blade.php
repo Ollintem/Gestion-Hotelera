@@ -23,8 +23,6 @@
 
     @include('empleados.partials.table')
 
-    @include('empleados.partials.modal-form')
-
     @php
         $accionesVisibles = collect($this->accionesMatriz());
     @endphp

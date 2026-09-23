@@ -10,6 +10,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Servicios extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $servicioId = null;
@@ -22,9 +24,13 @@ class Servicios extends Component
 
     public function render(): View
     {
-        return view('servicios.index', [
-            'servicios' => Servicio::withCount('reservasServicio')->orderBy('nombre')->get(),
-        ]);
+        $servicios = Servicio::withCount('reservasServicio')->orderBy('nombre')->get();
+
+        return match ($this->pagina) {
+            'crear' => view('servicios.create', ['servicios' => $servicios]),
+            'editar' => view('servicios.edit', ['servicios' => $servicios]),
+            default => view('servicios.index', ['servicios' => $servicios]),
+        };
     }
 
     public function crear(): void
@@ -32,7 +38,7 @@ class Servicios extends Component
         $this->reset(['servicioId', 'nombre', 'precio']);
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -44,12 +50,12 @@ class Servicios extends Component
         $this->precio = (string) $servicio->precio;
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['servicioId', 'nombre', 'precio']);
         $this->resetValidation();
     }

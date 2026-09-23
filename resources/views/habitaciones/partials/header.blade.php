@@ -57,23 +57,17 @@
     </div>
 
     <div class="mt-4 flex flex-wrap items-center gap-4">
-        <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-slate-500">
-                <flux:icon.funnel class="size-4" />
-            </span>
-            <select
+        <div>
+            <x-dropdown
                 wire:model.live="filtroEstado"
                 aria-label="Filtrar por estado"
-                class="block rounded-xl border-0 bg-white py-2.5 pl-10 pr-9 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 transition-all duration-300 ease-out focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-slate-800 dark:text-zinc-200 dark:ring-zinc-700"
+                :selected="$filtroEstado"
+                :options="['todos' => 'Todos los estados'] + collect($this::OPCIONES_ESTADO)->mapWithKeys(fn ($opcion) => [$opcion['clave'] => $opcion['etiqueta']])->all()"
             >
-                <option value="todos">Todos los estados</option>
-                @foreach ($this::OPCIONES_ESTADO as $opcion)
-                    <option value="{{ $opcion['clave'] }}">{{ $opcion['etiqueta'] }}</option>
-                @endforeach
-            </select>
-            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
-                <flux:icon.chevron-down class="size-4" />
-            </span>
+                <x-slot:leadingIcon>
+                    <flux:icon.funnel class="size-4" />
+                </x-slot:leadingIcon>
+            </x-dropdown>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">

@@ -10,6 +10,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Clientes extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $clienteId = null;
@@ -30,9 +32,13 @@ class Clientes extends Component
 
     public function render(): View
     {
-        return view('clientes.index', [
-            'clientes' => Cliente::withCount('reservas')->orderBy('nombre')->get(),
-        ]);
+        $clientes = Cliente::withCount('reservas')->orderBy('nombre')->get();
+
+        return match ($this->pagina) {
+            'crear' => view('clientes.create', ['clientes' => $clientes]),
+            'editar' => view('clientes.edit', ['clientes' => $clientes]),
+            default => view('clientes.index', ['clientes' => $clientes]),
+        };
     }
 
     public function crear(): void
@@ -40,7 +46,7 @@ class Clientes extends Component
         $this->reset(['clienteId', 'nombre', 'apellido', 'email', 'telefono', 'tipo_identificacion', 'numero_identificacion']);
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -56,12 +62,12 @@ class Clientes extends Component
         $this->numero_identificacion = $cliente->numero_identificacion ?? '';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['clienteId', 'nombre', 'apellido', 'email', 'telefono', 'tipo_identificacion', 'numero_identificacion']);
         $this->resetValidation();
     }

@@ -1,8 +1,8 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR SERVICIO
+     FORMULARIO COMPARTIDO: CREAR / EDITAR SERVICIO
      ====================================================== --}}
 
-<flux:modal name="servicio-form" wire:model="mostrarModal" class="w-full max-w-md">
+<flux:card class="w-full max-w-xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $servicioId ? 'Editar servicio' : 'Nuevo servicio' }}</flux:heading>
@@ -31,4 +31,4 @@
             </flux:button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

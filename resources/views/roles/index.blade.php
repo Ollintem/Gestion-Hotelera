@@ -19,9 +19,5 @@
 
     @include('roles.partials.table')
 
-    @include('roles.partials.modal-create')
-
-    @include('roles.partials.modal-edit')
-
     @include('roles.partials.modal-eliminar')
 </div>

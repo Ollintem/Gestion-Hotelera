@@ -14,6 +14,4 @@
     @else
         @include('habitaciones.partials.lista')
     @endif
-
-    @include('habitaciones.partials.modal-form')
 </div>

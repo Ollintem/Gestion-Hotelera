@@ -8,6 +8,4 @@
     @include('pagos.partials.header')
 
     @include('pagos.partials.table')
-
-    @include('pagos.partials.modal-form')
 </div>

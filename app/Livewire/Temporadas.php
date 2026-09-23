@@ -10,6 +10,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Temporadas extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $temporadaId = null;
@@ -26,9 +28,13 @@ class Temporadas extends Component
 
     public function render(): View
     {
-        return view('temporadas.index', [
-            'temporadas' => Temporada::orderBy('fecha_inicio')->get(),
-        ]);
+        $temporadas = Temporada::orderBy('fecha_inicio')->get();
+
+        return match ($this->pagina) {
+            'crear' => view('temporadas.create', ['temporadas' => $temporadas]),
+            'editar' => view('temporadas.edit', ['temporadas' => $temporadas]),
+            default => view('temporadas.index', ['temporadas' => $temporadas]),
+        };
     }
 
     public function crear(): void
@@ -37,7 +43,7 @@ class Temporadas extends Component
         $this->multiplicador_precio = '1.00';
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -51,12 +57,12 @@ class Temporadas extends Component
         $this->multiplicador_precio = (string) $temporada->multiplicador_precio;
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['temporadaId', 'nombre', 'fecha_inicio', 'fecha_fin']);
         $this->resetValidation();
     }

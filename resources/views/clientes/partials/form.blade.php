@@ -1,8 +1,8 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR CLIENTE
+     FORMULARIO COMPARTIDO: CREAR / EDITAR CLIENTE
      ====================================================== --}}
 
-<flux:modal name="cliente-form" wire:model="mostrarModal" class="w-full max-w-lg">
+<flux:card class="w-full max-w-2xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold">{{ $clienteId ? 'Editar cliente' : 'Nuevo cliente' }}</flux:heading>
@@ -36,11 +36,12 @@
 
             <flux:field>
                 <flux:label>Tipo de identificación</flux:label>
-                <select wire:model="tipo_identificacion" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white">
-                    <option value="">Sin especificar…</option>
-                    <option value="INE">INE</option>
-                    <option value="Pasaporte">Pasaporte</option>
-                </select>
+                <x-dropdown
+                    wire:model="tipo_identificacion"
+                    :selected="$tipo_identificacion"
+                    placeholder="Sin especificar…"
+                    :options="['INE' => 'INE', 'Pasaporte' => 'Pasaporte']"
+                />
                 <flux:error name="tipo_identificacion" />
             </flux:field>
 
@@ -59,4 +60,4 @@
             </flux:button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

@@ -12,6 +12,8 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Habitaciones extends Component
 {
+    public string $pagina = 'index';
+
     public bool $mostrarModal = false;
 
     public ?int $habitacionId = null;
@@ -83,12 +85,18 @@ class Habitaciones extends Component
             ->orderBy('numero_habitacion')
             ->get();
 
-        return view('habitaciones.index', [
+        $datos = [
             'habitaciones' => $habitaciones,
             'totalHabitaciones' => Habitacion::count(),
             'tipos' => TipoHabitacion::orderBy('nombre')->get(),
             'estados' => self::ESTADOS,
-        ]);
+        ];
+
+        return match ($this->pagina) {
+            'crear' => view('habitaciones.create', $datos),
+            'editar' => view('habitaciones.edit', $datos),
+            default => view('habitaciones.index', $datos),
+        };
     }
 
     /**
@@ -151,7 +159,7 @@ class Habitaciones extends Component
         $this->foto_url = self::IMAGENES[0];
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'crear';
     }
 
     public function editar(int $id): void
@@ -169,12 +177,12 @@ class Habitaciones extends Component
         $this->foto_url = $this->imagenPara($habitacion);
         $this->resetValidation();
         $this->reset('mensajeExito');
-        $this->mostrarModal = true;
+        $this->pagina = 'editar';
     }
 
     public function cerrarModal(): void
     {
-        $this->mostrarModal = false;
+        $this->pagina = 'index';
         $this->reset(['habitacionId', 'numero_habitacion', 'tipo_habitacion_id']);
         $this->resetValidation();
     }

@@ -8,6 +8,4 @@
     @include('gastos.partials.header')
 
     @include('gastos.partials.table')
-
-    @include('gastos.partials.modal-form')
 </div>

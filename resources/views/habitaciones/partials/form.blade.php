@@ -1,12 +1,13 @@
 {{-- ======================================================
-     MODAL: CREAR / EDITAR HABITACIÓN
+     FORMULARIO COMPARTIDO: CREAR / EDITAR HABITACIÓN
      ====================================================== --}}
 
 @php
-    $claseSelect = 'block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700';
+    $tiposOptions = $tipos->mapWithKeys(fn ($tipo) => [$tipo->id => $tipo->nombre.' — $'.number_format($tipo->precio_base, 2)])->all();
+    $estadosOptions = array_combine($estados, $estados);
 @endphp
 
-<flux:modal name="habitacion-form" wire:model="mostrarModal" class="w-full max-w-2xl">
+<flux:card class="w-full max-w-3xl">
     <form wire:submit="guardar">
         <div class="mb-6">
             <flux:heading size="lg" class="!text-slate-800 !font-semibold dark:!text-slate-100">
@@ -26,12 +27,13 @@
 
             <flux:field>
                 <flux:label>Tipo de habitación</flux:label>
-                <select wire:model="tipo_habitacion_id" required class="{{ $claseSelect }}">
-                    <option value="">Selecciona un tipo...</option>
-                    @foreach ($tipos as $tipo)
-                        <option value="{{ $tipo->id }}">{{ $tipo->nombre }} — ${{ number_format($tipo->precio_base, 2) }}</option>
-                    @endforeach
-                </select>
+                <x-dropdown
+                    wire:model="tipo_habitacion_id"
+                    required
+                    :selected="$tipo_habitacion_id"
+                    placeholder="Selecciona un tipo..."
+                    :options="$tiposOptions"
+                />
                 <flux:error name="tipo_habitacion_id" />
             </flux:field>
 
@@ -55,11 +57,11 @@
 
             <flux:field>
                 <flux:label>Estado inicial</flux:label>
-                <select wire:model="estado" class="{{ $claseSelect }}">
-                    @foreach ($estados as $estado)
-                        <option value="{{ $estado }}">{{ $estado }}</option>
-                    @endforeach
-                </select>
+                <x-dropdown
+                    wire:model="estado"
+                    :selected="$estado"
+                    :options="$estadosOptions"
+                />
                 <flux:error name="estado" />
             </flux:field>
 
@@ -98,4 +100,4 @@
             </button>
         </div>
     </form>
-</flux:modal>
+</flux:card>

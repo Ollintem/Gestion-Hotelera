@@ -132,31 +132,12 @@
                         Rol
                     </label>
 
-                    <select
+                    <x-dropdown
                         id="role"
                         name="role"
-                        style="
-                            display: block;
-                            width: 100%;
-                            box-sizing: border-box;
-                            padding: 10px 12px;
-                            border: 1px solid #d1d5db;
-                            border-radius: 8px;
-                            font-size: 14px;
-                            background: white;
-                        "
-                    >
-                        @foreach ($roles as $role)
-
-                            <option
-                                value="{{ $role->name }}"
-                                {{ $usuario->hasRole($role->name) ? 'selected' : '' }}
-                            >
-                                {{ $role->name }}
-                            </option>
-
-                        @endforeach
-                    </select>
+                        :selected="(string) old('role', $roles->firstWhere(fn ($role) => $usuario->hasRole($role->name))?->name ?? '')"
+                        :options="$roles->mapWithKeys(fn ($role) => [$role->name => $role->name])->all()"
+                    />
 
                     @error('role')
                         <p style="margin-top: 5px; color: #dc2626; font-size: 13px;">
@@ -174,28 +155,12 @@
                         Estado
                     </label>
 
-                    <select
+                    <x-dropdown
                         id="activo"
                         name="activo"
-                        style="
-                            display: block;
-                            width: 100%;
-                            box-sizing: border-box;
-                            padding: 10px 12px;
-                            border: 1px solid #d1d5db;
-                            border-radius: 8px;
-                            font-size: 14px;
-                            background: white;
-                        "
-                    >
-                        <option value="1" {{ $usuario->activo ? 'selected' : '' }}>
-                            Activo
-                        </option>
-
-                        <option value="0" {{ !$usuario->activo ? 'selected' : '' }}>
-                            Inactivo
-                        </option>
-                    </select>
+                        :selected="$usuario->activo ? '1' : '0'"
+                        :options="['1' => 'Activo', '0' => 'Inactivo']"
+                    />
 
                     @error('activo')
                         <p style="margin-top: 5px; color: #dc2626; font-size: 13px;">

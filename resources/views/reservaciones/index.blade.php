@@ -8,6 +8,4 @@
     @include('reservaciones.partials.header')
 
     @include('reservaciones.partials.table')
-
-    @include('reservaciones.partials.modal-form')
 </div>
