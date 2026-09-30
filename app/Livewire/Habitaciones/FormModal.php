@@ -59,10 +59,6 @@ class FormModal extends Component
 
     public string $piso = '1';
 
-    public string $capacidad = '';
-
-    public string $precio_por_noche = '';
-
     public string $descripcion = '';
 
     /**
@@ -106,7 +102,8 @@ class FormModal extends Component
     }
 
     /**
-     * Rellena los datos auxiliares con los del tipo de habitación elegido.
+     * Rellena la descripción con la del tipo de habitación elegido. La capacidad
+     * y el precio por noche no se piden: se heredan del tipo de habitación.
      */
     public function updatedTipoHabitacionId(): void
     {
@@ -118,8 +115,6 @@ class FormModal extends Component
             return;
         }
 
-        $this->capacidad = (string) $tipo->capacidad;
-        $this->precio_por_noche = number_format((float) $tipo->precio_base, 2, '.', '');
         $this->descripcion = $tipo->descripcion ?? '';
     }
 
@@ -246,8 +241,6 @@ class FormModal extends Component
             $this->tipo_habitacion_id = '';
             $this->estado = 'Disponible';
             $this->piso = '1';
-            $this->capacidad = '';
-            $this->precio_por_noche = '';
             $this->descripcion = '';
             $this->fotoGuardada = null;
 
@@ -258,8 +251,6 @@ class FormModal extends Component
         $this->tipo_habitacion_id = (string) $habitacion->tipo_habitacion_id;
         $this->estado = $habitacion->estado;
         $this->piso = (string) $habitacion->piso;
-        $this->capacidad = (string) ($habitacion->tipoHabitacion?->capacidad ?? '');
-        $this->precio_por_noche = number_format((float) ($habitacion->tipoHabitacion?->precio_base ?? 0), 2, '.', '');
         $this->descripcion = $habitacion->tipoHabitacion?->descripcion ?? '';
         $this->fotoGuardada = $habitacion->foto;
     }

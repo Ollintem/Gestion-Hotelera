@@ -1,23 +1,12 @@
 <?php
 
-use App\Livewire\Servicios\Cargos;
-use App\Livewire\Servicios\FormModal;
-use App\Livewire\Servicios\Index as ServiciosIndex;
-use App\Models\Cliente;
-use App\Models\Empleado;
-use App\Models\Habitacion;
+use App\Livewire\Servicios;
+use App\Models\Categoria;
 use App\Models\Reserva;
-use App\Models\ReservaHabitacion;
 use App\Models\ReservaServicio;
 use App\Models\Servicio;
-use App\Models\TipoHabitacion;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
-use Livewire\Attributes\Lazy;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -25,1019 +14,569 @@ beforeEach(function () {
 
     $this->admin = User::factory()->create();
     $this->admin->assignRole('super-admin');
+});
 
-    $this->crearServicio = fn (string $nombre, float $precio, string $categoria = 'Minibar', ?string $descripcion = null): Servicio => Servicio::create([
-        'nombre' => $nombre,
-        'precio' => $precio,
-        'categoria' => $categoria,
-        'descripcion' => $descripcion,
+/**
+ * Recorta el cuerpo de la tabla para poder afirmar sobre las filas visibles sin
+ * que el modal, que siempre se renderiza, contamine la comprobación.
+ */
+function cuerpoTabla(string $html): string
+{
+    preg_match('/<tbody.*?<\/tbody>/s', $html, $coincidencias);
+
+    return $coincidencias[0] ?? '';
+}
+
+/**
+ * Recorta el desplegable de categorías del filtro, para no confundirlo con el
+ * del modal, que sí lista también las categorías inactivas.
+ */
+function opcionesFiltroCategoria(string $html): string
+{
+    preg_match('/Todas las categorías.*?<\/select>/s', $html, $coincidencias);
+
+    return $coincidencias[0] ?? '';
+}
+
+/**
+ * Devuelve la categoría del catálogo base sembrado por la migración, o crea una
+ * nueva si el nombre no forma parte de ese catálogo.
+ */
+function categoriaDe(string $nombre): Categoria
+{
+    return Categoria::firstOrCreate(
+        ['nombre' => $nombre],
+        ['descripcion' => 'Categoría de prueba.', 'activo' => true]
+    );
+}
+
+test('el panel se estructura en tarjetas KPI, barra de filtros y tabla de servicios', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'precio' => 320.00]);
+
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)
+        // Sección 1: rejilla de cuatro tarjetas KPI.
+        ->toContain('grid grid-cols-1 md:grid-cols-4 gap-4 mb-6')
+        ->toContain('bg-white rounded-2xl border border-slate-100 p-4 shadow-sm')
+        ->toContain('CATÁLOGO')
+        ->toContain('CATEGORÍAS')
+        ->toContain('CARGOS REGISTRADOS')
+        ->toContain('CONSUMOS FACTURADOS')
+        // Sección 2: buscador a la izquierda, filtro a la derecha.
+        ->toContain('flex gap-4 mb-6')
+        ->toContain('placeholder="Buscar por nombre o descripción..."')
+        ->toContain('Todas las categorías')
+        // Sección 3: contenedor de tabla sin bordes verticales.
+        ->toContain('bg-white rounded-2xl border border-slate-100 overflow-hidden')
+        ->toContain('divide-y divide-slate-50')
+        ->toContain('SERVICIO')
+        ->toContain('CATEGORÍA')
+        ->toContain('PRECIO (MXN)')
+        ->toContain('CARGOS')
+        ->toContain('ACCIONES')
+        ->toContain('text-xs font-bold uppercase tracking-wider text-slate-400')
+        ->toContain('Desayuno buffet')
+        ->toContain('$320.00')
+        ->toContain('wire:click="editar('.$servicio->id.')"');
+});
+
+test('las cabeceras de la tabla se muestran en mayúsculas y en gris', function () {
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)->toContain('px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400')
+        ->and($html)->toContain('px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-400');
+});
+
+test('el nombre va en negrita y la descripción debajo en gris claro', function () {
+    Servicio::factory()->create([
+        'nombre' => 'Desayuno buffet',
+        'descripcion' => 'Café, jugo y panadería caliente.',
     ]);
 
-    $this->crearEmpleado = fn (string $nombre, string $puesto = 'Recepcionista', ?int $usuarioId = null): Empleado => Empleado::create([
-        'id_usuario' => $usuarioId,
-        'nombre' => $nombre,
-        'apellidos' => 'Del Hotel',
-        'puesto' => $puesto,
-        'salario' => 18000,
-        'esta_activo' => true,
-    ]);
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
-    /*
-     | Reservación con huésped dentro del hotel: es el folio sobre el que se
-     | admiten consumos extras. Todas tienen el mismo check-in para que el orden del
-     | desplegable solo dependa del identificador.
-     */
-    $this->crearFolio = function (string $estado = 'Confirmada', float $precioNoche = 899.00): Reserva {
-        $usuario = User::factory()->create();
-        $usuario->assignRole('cliente');
-        $usuarioId = $usuario->id;
+    expect($html)->toContain('text-slate-800 font-bold')
+        ->toContain('text-sm text-slate-400')
+        ->toContain('Café, jugo y panadería caliente.');
+});
 
-        $cliente = Cliente::create([
-            'user_id' => $usuarioId,
-            'nombre' => 'Ana',
-            'apellido' => 'López',
-            'email' => 'ana'.uniqid().'@hotel.com',
-            'tipo_identificacion' => 'RFC',
-            'numero_identificacion' => 'LOAN'.uniqid(),
-        ]);
+test('la categoría se muestra como badge naranja y los cargos como total', function () {
+    $categoria = categoriaDe('Alimentación');
+    $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $categoria->id]);
 
-        $tipo = TipoHabitacion::create([
-            'nombre' => 'Estándar '.uniqid(),
-            'precio_base' => $precioNoche,
-            'capacidad' => 2,
-        ]);
-
-        $habitacion = Habitacion::create([
-            'numero_habitacion' => (string) random_int(100, 999),
-            'tipo_habitacion_id' => $tipo->id,
-            'estado' => $estado === 'Confirmada' ? 'Ocupada' : 'Disponible',
-            'piso' => 1,
-        ]);
-
-        $reserva = Reserva::create([
-            'cliente_id' => $cliente->id,
-            'user_id' => $usuarioId,
-            'check_in' => now()->subDays(2)->toDateString(),
-            'check_out' => now()->addDays(2)->toDateString(),
-            'estado' => $estado,
-            'monto_total' => $precioNoche * 4,
-        ]);
-
-        ReservaHabitacion::create([
-            'reserva_id' => $reserva->id,
-            'habitacion_id' => $habitacion->id,
-            'precio_por_noche' => $precioNoche,
-        ]);
-
-        return $reserva->fresh();
-    };
-
-    $this->cargarCargo = fn (Reserva $reserva, Servicio $servicio, Empleado $empleado, int $cantidad = 1, ?float $precio = null): ReservaServicio => ReservaServicio::create([
-        'reserva_id' => $reserva->id,
+    ReservaServicio::factory()->count(3)->create([
         'servicio_id' => $servicio->id,
-        'cantidad' => $cantidad,
-        'precio_aplicado' => $precio ?? (float) $servicio->precio,
-        'empleado_id' => $empleado->id_empleado,
-        'subtotal' => round(($precio ?? (float) $servicio->precio) * $cantidad, 2),
+        'reserva_id' => Reserva::factory()->create(['estado' => 'Finalizada'])->id,
     ]);
+
+    $fila = cuerpoTabla(Livewire::actingAs($this->admin)->test(Servicios::class)->html());
+
+    expect($fila)->toContain('inline-flex items-center px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-xs font-semibold')
+        ->toContain('Alimentación')
+        // El contador de cargos de la fila.
+        ->toMatch('/text-slate-700 font-medium">\s*3\s*</');
 });
 
-test('el catalogo y los cargos al folio guardan los datos del modulo', function () {
-    expect(Schema::hasTable('servicios'))->toBeTrue()
-        ->and(Schema::hasColumns('servicios', ['id', 'nombre', 'descripcion', 'categoria', 'precio']))->toBeTrue()
-        ->and(Schema::hasColumns('reserva_servicio', ['id', 'reserva_id', 'servicio_id', 'cantidad', 'precio_aplicado', 'empleado_id', 'subtotal']))->toBeTrue()
-        ->and(Schema::hasColumn('reserva_servicio', 'empleado_id'))->toBeTrue();
+test('un servicio heredado sin categoría muestra el texto de reemplazo', function () {
+    Servicio::factory()->sinCategoria()->create(['nombre' => 'Traslado privado']);
+
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)->toContain('Sin categoría');
 });
 
-test('el modulo esta encarpetado en servicios con vistas separadas por operacion', function () {
-    $base = resource_path('views/servicios');
+test('un servicio sin descripción muestra el texto de reemplazo', function () {
+    Servicio::factory()->create(['descripcion' => null]);
 
-    foreach (['index', 'create', 'edit'] as $vista) {
-        expect(File::exists($base.'/'.$vista.'.blade.php'))->toBeTrue();
-    }
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
-    foreach (['header', 'table', 'form', 'cargo-form', 'cargos-table'] as $parcial) {
-        expect(File::exists($base.'/partials/'.$parcial.'.blade.php'))->toBeTrue();
-    }
-
-    // El catálogo y los cargos son archivos independientes: el formulario del
-    // catálogo no arrastra la lógica de cargos ni al revés.
-    expect(File::get($base.'/partials/form.blade.php'))
-        ->toContain('wire:model="nombre"')
-        ->not->toContain('reserva_id');
-
-    expect(File::get($base.'/partials/cargo-form.blade.php'))
-        ->toContain('wire:model="reserva_id"')
-        ->toContain('wire:model="empleado_id"')
-        ->not->toContain('wire:model="descripcion"');
-
-    // El contenedor delega tabla y cargos en sus parciales y monta los diálogos.
-    expect(File::get($base.'/index.blade.php'))
-        ->toContain("@include('servicios.partials.header')")
-        ->toContain("@include('servicios.partials.table')")
-        ->toContain("@include('servicios.partials.cargos-table')")
-        ->toContain('livewire:servicios.form-modal')
-        ->toContain('livewire:servicios.cargos');
-
-    foreach (['Index', 'FormModal', 'Cargos'] as $componente) {
-        expect(File::exists(app_path('Livewire/Servicios/'.$componente.'.php')))->toBeTrue();
-    }
+    expect($html)->toContain('Sin descripción');
 });
 
-test('el contenedor lista el catalogo con los kpis los filtros y el alta', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar', 'Vinos y snacks.');
+test('la tabla vacía muestra el estado vacío', function () {
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)->toContain('No hay servicios registrados.');
+});
+
+test('los KPIs cuentan catálogo, categorías activas, cargos y consumos facturados', function () {
+    $bienestar = categoriaDe('Bienestar');
+    Categoria::query()->whereKey($bienestar->id)->update(['activo' => true]);
+    Categoria::query()->where('nombre', '!=', $bienestar->nombre)->update(['activo' => false]);
+
+    $desayuno = Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $bienestar->id]);
+    $spa = Servicio::factory()->create(['nombre' => 'Spa y masajes', 'categoria_id' => $bienestar->id]);
+
+    $reservaFinalizada = Reserva::factory()->finalizada()->create();
+    $reservaPendiente = Reserva::factory()->create(['estado' => 'Pendiente']);
+
+    ReservaServicio::factory()->create([
+        'servicio_id' => $desayuno->id,
+        'reserva_id' => $reservaFinalizada->id,
+        'subtotal' => 320.00,
+    ]);
+    ReservaServicio::factory()->create([
+        'servicio_id' => $spa->id,
+        'reserva_id' => $reservaFinalizada->id,
+        'subtotal' => 680.00,
+    ]);
+    ReservaServicio::factory()->create([
+        'servicio_id' => $spa->id,
+        'reserva_id' => $reservaPendiente->id,
+        'subtotal' => 999.00,
+    ]);
+
+    // El KPI se toma del componente, no de una expression regular sobre el HTML.
+    $kpis = Livewire::actingAs($this->admin)->test(Servicios::class)->viewData('kpis');
+
+    expect($kpis['totalServicios'])->toBe(2)
+        // Las categorías desactivadas no cuentan como activas.
+        ->and($kpis['categoriasActivas'])->toBe(1)
+        ->and($kpis['cargosRegistrados'])->toBe(3)
+        // Solo cuenta la reserva finalizada; el subtotal de la pendiente se excluye.
+        ->and($kpis['consumosFacturados'])->toBe(1000.00);
+});
+
+test('el KPI de consumos facturados se renderiza formateado como moneda', function () {
+    $servicio = Servicio::factory()->create();
+
+    ReservaServicio::factory()->create([
+        'servicio_id' => $servicio->id,
+        'reserva_id' => Reserva::factory()->finalizada()->create()->id,
+        'subtotal' => 1234.50,
+    ]);
+
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)->toContain('$1,234.50');
+});
+
+test('los KPIs describen el hotel completo y no la selección del filtro', function () {
+    $alimentacion = categoriaDe('Alimentación');
+    $bienestar = categoriaDe('Bienestar');
+    $categoriasActivas = Categoria::query()->activas()->count();
+
+    Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $alimentacion->id]);
+    Servicio::factory()->create(['nombre' => 'Spa y masajes', 'categoria_id' => $bienestar->id]);
+
+    $kpis = Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->set('categoriaFiltro', (string) $alimentacion->id)
+        ->viewData('kpis');
+
+    expect($kpis['totalServicios'])->toBe(2)
+        ->and($kpis['categoriasActivas'])->toBe($categoriasActivas);
+});
+
+test('el buscador filtra por nombre o por descripción', function () {
+    $categoria = Categoria::factory()->create();
+
+    Servicio::factory()->create([
+        'nombre' => 'Desayuno buffet',
+        'descripcion' => 'Café, jugo y panadería caliente.',
+        'categoria_id' => $categoria->id,
+    ]);
+    Servicio::factory()->create([
+        'nombre' => 'Spa y masajes',
+        'descripcion' => 'Masaje relajante de 60 minutos.',
+        'categoria_id' => $categoria->id,
+    ]);
+
+    $componente = Livewire::actingAs($this->admin)->test(Servicios::class);
+
+    expect(cuerpoTabla($componente->set('search', 'spa')->html()))
+        ->toContain('Spa y masajes')
+        ->not->toContain('Desayuno buffet')
+        // La búsqueda también alcanza la descripción.
+        ->and(cuerpoTabla($componente->set('search', 'panadería')->html()))->toContain('Desayuno buffet')
+        ->and(cuerpoTabla($componente->set('search', 'zzzz')->html()))->toContain('No hay servicios registrados.');
+});
+
+test('el filtro de categoría acota los resultados', function () {
+    $alimentacion = categoriaDe('Alimentación');
+    $bienestar = categoriaDe('Bienestar');
+
+    Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $alimentacion->id]);
+    Servicio::factory()->create(['nombre' => 'Spa y masajes', 'categoria_id' => $bienestar->id]);
+
+    $componente = Livewire::actingAs($this->admin)->test(Servicios::class);
+
+    expect(cuerpoTabla($componente->set('categoriaFiltro', (string) $bienestar->id)->html()))
+        ->toContain('Spa y masajes')
+        ->not->toContain('Desayuno buffet')
+        // La opción por defecto recupera todo el catálogo.
+        ->and(cuerpoTabla($componente->set('categoriaFiltro', '')->html()))
+        ->toContain('Desayuno buffet')
+        ->toContain('Spa y masajes');
+});
+
+test('el filtro solo ofrece categorías activas', function () {
+    categoriaDe('Alimentación');
+    Categoria::factory()->inactiva()->create(['nombre' => 'Categoría retirada']);
+
+    $filtro = opcionesFiltroCategoria(Livewire::actingAs($this->admin)->test(Servicios::class)->html());
+
+    expect($filtro)->toContain('Alimentación')
+        ->not->toContain('Categoría retirada');
+});
+
+test('limpiarFiltros restablece el buscador y la categoría', function () {
+    $alimentacion = categoriaDe('Alimentación');
+    Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $alimentacion->id]);
+    Servicio::factory()->create(['nombre' => 'Spa y masajes']);
 
     Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->assertOk()
-        ->assertSee('Servicios')
-        ->assertSee('1 servicio en catálogo')
-        ->assertSee('Minibar premium')
-        ->assertSee('Vinos y snacks.')
-        ->assertSee('Minibar')
-        ->assertSee('$350.00')
-        // KPIs de la operación.
-        ->assertSee('En catálogo')
-        ->assertSee('Categorías')
-        ->assertSee('Cargos registrados')
-        ->assertSee('Consumos facturados')
-        // Filtros.
-        ->assertSee('Buscar por nombre o descripción...')
-        ->assertSee('Todas las categorías');
+        ->test(Servicios::class)
+        ->set('search', 'spa')
+        ->set('categoriaFiltro', (string) $alimentacion->id)
+        ->call('limpiarFiltros')
+        ->assertSet('search', '')
+        ->assertSet('categoriaFiltro', '');
 });
 
-test('la busqueda del catalogo cubre el nombre y la descripcion', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar', 'Vinos y snacks.');
-    ($this->crearServicio)('Lavado exprés', 120.00, 'Lavandería', 'Camisetas y trajes.');
+test('la tabla pagina el catálogo en bloques de diez', function () {
+    $categoria = Categoria::factory()->create();
 
-    $componente = Livewire::actingAs($this->admin)->test(ServiciosIndex::class);
+    Servicio::factory()
+        ->count(23)
+        ->create(['categoria_id' => $categoria->id]);
 
-    $nombres = fn (): array => $componente->instance()->servicios->pluck('nombre')->all();
+    $componente = Livewire::actingAs($this->admin)->test(Servicios::class);
 
-    expect($nombres())->toBe(['Lavado exprés', 'Minibar premium']);
+    expect($componente->viewData('servicios')->total())->toBe(23)
+        ->and($componente->viewData('servicios')->count())->toBe(10);
 
-    $componente->set('search', 'Minibar');
-    expect($nombres())->toBe(['Minibar premium']);
+    $componente->call('gotoPage', 3);
 
-    // Busca por descripción, no solo por nombre.
-    $componente->set('search', 'snacks');
-    expect($nombres())->toBe(['Minibar premium']);
-
-    $componente->set('search', '');
-    expect($nombres())->toBe(['Lavado exprés', 'Minibar premium']);
+    expect($componente->viewData('servicios')->count())->toBe(3);
 });
 
-test('el filtro por categoria recorta el catalogo y vuelve con el total', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    ($this->crearServicio)('Cena degustación', 900.00, 'Restaurante');
+test('el modal ofrece un desplegable con la opción deshabilitada y el catálogo cerrado', function () {
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
-    $componente = Livewire::actingAs($this->admin)->test(ServiciosIndex::class);
-
-    $componente->call('filtrarPorCategoria', 'Restaurante')
-        ->assertSet('filtroCategoria', 'Restaurante')
-        ->assertSee('Cena degustación')
-        ->assertDontSee('Minibar premium')
-        ->assertSee('Mostrando 1 servicio de 2');
-
-    $componente->call('filtrarPorCategoria', ServiciosIndex::FILTRO_TODAS)
-        ->assertSet('filtroCategoria', ServiciosIndex::FILTRO_TODAS)
-        ->assertSee('Minibar premium')
-        ->assertSee('Cena degustación')
-        ->assertDontSee('Mostrando 1 servicio de 2');
+    expect($html)->toContain('<select')
+        ->and($html)->toContain('wire:model="nombre"')
+        ->and($html)->toContain('value="" disabled selected class="placeholder">Selecciona un servicio...<')
+        ->and($html)->toContain('>Servicio a la habitación<')
+        ->and($html)->toContain('Desayuno buffet')
+        ->and($html)->toContain('>Lavandería<')
+        ->and($html)->toContain('Spa y masajes')
+        ->and($html)->toContain('>Traslado al aeropuerto<')
+        // El campo ya no es un input de texto libre.
+        ->and($html)->not->toContain('placeholder="Ejemplo: Desayuno buffet"');
 });
 
-test('una categoria desconocida vuelve al total sin romper la consulta', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-
-    $componente = Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->call('filtrarPorCategoria', 'categoria-inexistente');
-
-    expect($componente->get('filtroCategoria'))->toBe(ServiciosIndex::FILTRO_TODAS)
-        ->and($componente->instance()->servicios->pluck('nombre')->all())->toBe(['Minibar premium']);
-});
-
-test('las tarjetas de categoria solo ofrecen las que tienen servicios', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    ($this->crearServicio)('Cena degustación', 900.00, 'Restaurante');
-    ($this->crearServicio)('Lavado exprés', 120.00, 'Lavandería');
-
-    $conteo = Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->instance()
-        ->conteoPorCategoria();
-
-    expect($conteo)->toBe(['Minibar' => 1, 'Restaurante' => 1, 'Lavandería' => 1])
-        ->and($conteo)->not->toHaveKey('Transporte');
-});
-
-test('el catalogo se pagina de diez en diez servicios', function () {
-    foreach (range(1, 12) as $indice) {
-        ($this->crearServicio)('Servicio '.str_pad((string) $indice, 2, '0', STR_PAD_LEFT), 100.00);
-    }
-
-    $componente = Livewire::actingAs($this->admin)->test(ServiciosIndex::class);
-
-    expect(substr_count($componente->html(), 'aria-label="Editar servicio"'))
-        ->toBe(ServiciosIndex::POR_PAGINA)
-        ->and($componente->html())->toContain('Servicio 01')
-        ->and($componente->html())->not->toContain('Servicio 12');
-
-    $componente->call('nextPage');
-
-    expect($componente->html())->toContain('Servicio 12');
-});
-
-test('el contenedor no lleva estado de visibilidad y solo enruta el formulario', function () {
-    $propiedades = (new ReflectionClass(ServiciosIndex::class))->getProperties();
-
-    // Ninguna propiedad booleana controla la visibilidad: el <dialog> del
-    // catálogo lo abre el propio formulario con `modal-show` una vez cargados
-    // los datos, y el de cargos Flux desde el navegador.
-    expect(array_map(fn ($p) => $p->getName(), $propiedades))
-        ->not->toContain('mostrarModal')
-        ->not->toContain('isOpenEditModal')
-        ->not->toContain('servicioId')
-        ->and(array_filter($propiedades, fn ($p) => $p->getType()?->getName() === 'bool'))->toBeEmpty();
-
-    // `crear` y `editar` no preparan nada: solo avisan al formulario, que es el
-    // dueño de los datos y de la apertura.
+test('el modal rechaza un nombre fuera del catálogo', function () {
     Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
+        ->test(Servicios::class)
         ->call('crear')
-        ->assertDispatched('servicio-crear')
-        ->assertSet('mensajeExito', null);
-});
-
-test('el contenedor enruta la edicion al formulario con el identificador de la fila', function () {
-    $servicio = ($this->crearServicio)('Lavado exprés', 120.50, 'Lavandería');
-
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->call('editar', $servicio->id)
-        ->assertDispatched('servicio-editar', id: $servicio->id);
-});
-
-test('el dialogo del catalogo lo abre el servidor y el de cargos Flux en el navegador', function () {
-    $html = Livewire::actingAs($this->admin)->test(ServiciosIndex::class)->html();
-
-    // El de cargos no necesita datos del folio: lo abre Alpine.
-    expect($html)
-        ->toContain("\$dispatch('modal-show', { name: 'servicio-cargo' })")
-        ->toContain('novastay-servicio-modal')
-        ->toMatch('/<dialog[^>]*class="[^"]*bg-transparent[^"]*"/s')
-        ->toContain('<div wire:ignore>')
-        ->and($html)->not->toContain('wire:model="mostrarModal"')
-        // El del catálogo ya no se abre desde el navegador: lo abre el
-        // formulario cuando ya trae los datos del servicio.
-        ->and($html)->not->toContain("\$dispatch('modal-show', { name: 'servicio-form' })")
-        ->and($html)->toContain('wire:click="crear"')
-        ->and($html)->toContain("\$dispatch('modal-close', { name: 'servicio-form' })");
-});
-
-test('el formulario del catalogo vive dentro del dialogo sin carga diferida', function () {
-    ($this->crearServicio)('Minibar premium', 350.00);
-
-    $html = Livewire::actingAs($this->admin)->test(ServiciosIndex::class)->html();
-
-    $dialogo = Str::between($html, 'data-modal="servicio-form"', 'data-modal="servicio-cargo"');
-
-    /*
-     | Un componente `#[Lazy]` descarta los eventos dirigidos a él antes de
-     | cargarse, así que el primer clic sobre una fila abría el formulario de
-     | alta. El del catálogo se monta con la pantalla; el de cargos sí sigue
-     | diferido, porque no recibe datos del folio y no tiene eventos propios.
-     */
-    expect($dialogo)
-        ->toContain('Agregar servicio')
-        ->not->toContain('__lazyLoad')
-        ->and((new ReflectionClass(FormModal::class))->getAttributes(Lazy::class))->toBeEmpty()
-        ->and((new ReflectionClass(Cargos::class))->getAttributes(Lazy::class))->not->toBeEmpty();
-});
-
-test('el cristal de fondo de los modales vive en la hoja de estilos', function () {
-    $css = file_get_contents(resource_path('css/app.css'));
-
-    expect($css)->toContain('.novastay-servicio-modal::backdrop')
-        ->toContain('backdrop-filter: blur(4px)')
-        ->toContain('rgb(15 23 42 / 0.6)')
-        ->toContain('transition: opacity 300ms');
-});
-
-test('la tabla del catalogo usa la paleta neutra con acento amber y bordes sutiles', function () {
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar', 'Vinos y snacks.');
-
-    $html = Livewire::actingAs($this->admin)->test(ServiciosIndex::class)->html();
-
-    // Tarjeta con sombra limpia y esquinas redondeadas.
-    expect($html)->toContain('rounded-2xl bg-white shadow-xl shadow-slate-950/5 ring-1 ring-slate-900/5')
-        // Etiqueta de categoría en ámbar.
-        ->toContain('bg-amber-50')
-        ->toContain('text-amber-800')
-        ->toContain('ring-amber-200/70')
-        // Encabezados neutros.
-        ->toContain('text-[10px] font-bold uppercase tracking-wider text-slate-400')
-        ->toContain('bg-slate-50/80')
-        // Interacción de las acciones.
-        ->toContain('hover:-translate-y-0.5')
-        ->toContain('active:scale-95');
-});
-
-test('cada fila de la tabla abre el formulario con su propio identificador', function () {
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
-
-    $html = Livewire::actingAs($this->admin)->test(ServiciosIndex::class)->html();
-
-    expect($html)
-        ->toContain('wire:click="editar('.$servicio->id.')')
-        ->toContain('wire:target="editar('.$servicio->id.')')
-        ->toContain('wire:click="eliminar('.$servicio->id.')')
-        ->toContain('wire:confirm="¿Eliminar este servicio del catálogo?"')
-        ->and(substr_count($html, 'aria-label="Editar servicio"'))->toBe(1);
-});
-
-test('el formulario del modal se presenta como una tarjeta premium con los campos del sistema', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(FormModal::class)->html();
-
-    expect($html)->toContain('Nuevo servicio')
-        ->toContain('animate-modal-card-in')
-        ->toContain('rounded-2xl')
-        ->toContain('shadow-2xl')
-        // Campos sin bordes duros, con fondo sutil y anillo ámbar al enfocar.
-        ->toContain('bg-slate-50')
-        ->toContain('hover:bg-slate-100')
-        ->toContain('focus:ring-2')
-        ->toContain('focus:ring-amber-500')
-        // Iconos dentro de los campos.
-        ->toContain('peer-focus:text-amber-500')
-        // Botones: elevación al pasar el cursor y presión al hacer clic.
-        ->toContain('hover:-translate-y-0.5')
-        ->toContain('active:scale-95')
-        // Cierre en el navegador, sin viaje al servidor.
-        ->toContain("\$dispatch('modal-close', { name: 'servicio-form' })")
-        ->and($html)->not->toContain('wire:click="cerrar"');
-});
-
-test('los campos con icono reservan el hueco con pl-11 y el desplegable con pl-10', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(FormModal::class)->html();
-
-    // Los tres campos de texto con icono: nombre, precio y descripción.
-    expect(substr_count($html, 'pl-11 pr-3.5'))->toBe(3)
-        ->and($html)->toContain('absolute left-3.5 top-1/2 size-5')
-        // El desplegable de categoría lleva su propio `pl-10`.
-        ->and(substr_count($html, 'focus:ring-amber-500 pl-10'))->toBe(1)
-        // Sin select nativo visible.
-        ->and($html)->toContain('class="sr-only"')
-        ->not->toContain('appearance-none');
-});
-
-test('los desplegables del formulario son menus redondeados con sombra limpia', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(FormModal::class)->html();
-
-    expect($html)->toContain('aria-haspopup="listbox"')
-        ->toContain('role="listbox"')
-        ->toContain('role="option"')
-        // `id` y etiqueta apuntan al botón real, no al select invisible.
-        ->toContain('id="categoria"')
-        ->toContain('id="nombre"')
-        // Menú flotante: esquinas redondeadas, borde sutil y sombra elegante.
-        ->toContain('rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-xl shadow-slate-950/5')
-        ->toContain('x-transition:enter')
-        ->toContain('x-transition:leave')
-        // Hover neutro y realce amber en la opción elegida.
-        ->toContain('hover:bg-slate-100')
-        ->toContain('bg-amber-50');
-});
-
-test('el formulario pide nombre categoria y precio y deja la descripcion como opcional', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(FormModal::class)->html();
-
-    $asterisco = '<span class="text-red-500 font-extrabold text-sm ml-0.5">*</span>';
-
-    expect(substr_count($html, $asterisco))->toBe(3)
-        ->and($html)->toContain('Nombre '.$asterisco)
-        ->and($html)->toContain('Categoría '.$asterisco)
-        ->toContain('Precio (MXN) '.$asterisco)
-        ->toContain('>Descripción<');
-});
-
-test('el formulario no pide al servidor con cada tecla y bloquea el doble clic', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(FormModal::class)->html();
-
-    foreach (['nombre', 'categoria', 'precio', 'descripcion'] as $campo) {
-        expect($html)->toContain('wire:model="'.$campo.'"');
-    }
-
-    expect($html)->not->toContain('wire:model.live=')
-        ->and($html)->not->toContain('wire:model.blur=')
-        ->toContain('wire:loading.attr="disabled"')
-        ->toContain('wire:target="guardar"')
-        ->toContain('Guardando...');
-});
-
-test('el desplegable de categorias sigue enlazado al estado de Livewire', function () {
-    Livewire::withoutLazyLoading();
-
-    $componente = Livewire::actingAs($this->admin)->test(FormModal::class);
-
-    // El <select> oculto sigue siendo el que lleva el enlace con el componente.
-    $componente
-        ->assertSeeHtml('wire:model="categoria"')
-        ->assertSet('categoria', Servicio::CATEGORIA_POR_DEFECTO)
-        ->set('categoria', 'Lavandería')
-        ->assertSee('Lavandería')
-        // Todas las categorías del enumerado se ofrecen como opciones del menú.
-        ->assertSee('Spa y Bienestar');
-});
-
-test('el alta de un servicio guarda nombre descripcion categoria y precio', function () {
-    Livewire::withoutLazyLoading();
-
-    Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->set('nombre', 'Lavado exprés')
-        ->set('descripcion', 'Camisetas y trajes, entrega en 4 horas.')
-        ->set('categoria', 'Lavandería')
-        ->set('precio', '120.50')
-        ->call('guardar')
-        ->assertHasNoErrors()
-        ->assertDispatched('servicio-guardada', mensaje: 'Servicio creado correctamente.');
-
-    $servicio = Servicio::where('nombre', 'Lavado exprés')->firstOrFail();
-
-    expect($servicio->descripcion)->toBe('Camisetas y trajes, entrega en 4 horas.')
-        ->and($servicio->categoria)->toBe('Lavandería')
-        ->and((float) $servicio->precio)->toBe(120.50);
-});
-
-test('el formulario actualiza el servicio en edicion y avisa al contenedor', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar', 'Vinos y snacks.');
-
-    Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->call('editar', $servicio->id)
-        ->assertSet('nombre', 'Minibar premium')
-        ->assertSet('categoria', 'Minibar')
-        ->assertSet('precio', '350.00')
-        ->assertSet('descripcion', 'Vinos y snacks.')
-        ->assertSee('Editar servicio')
-        ->assertSee('Guardar cambios')
-        ->set('precio', '399.00')
-        ->set('categoria', 'Restaurante')
-        ->call('guardar')
-        ->assertHasNoErrors()
-        ->assertDispatched('servicio-guardada', mensaje: 'Servicio actualizado correctamente.');
-
-    expect($servicio->fresh()->categoria)->toBe('Restaurante')
-        ->and((float) $servicio->fresh()->precio)->toBe(399.00);
-});
-
-test('un solo clic en la fila deja el formulario abierto con los datos del servicio', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Lavado exprés', 120.50, 'Lavandería', 'Camisetas y trajes.');
-
-    // Es el camino que sigue el botón de la fila: una llamada, y el formulario
-    // ya está cargado y con el diálogo pedido. Antes, el evento se perdía por
-    // `#[Lazy]` y el diálogo se abría con el formulario de alta.
-    $componente = Livewire::actingAs($this->admin)->test(FormModal::class);
-
-    expect($componente->get('nombre'))->toBe('')
-        ->and($componente->get('isOpenEditModal'))->toBeFalse();
-
-    $componente->call('editar', $servicio->id)
-        ->assertSet('servicioId', $servicio->id)
-        ->assertSet('isOpenEditModal', true)
-        ->assertSet('nombre', 'Lavado exprés')
-        ->assertSet('categoria', 'Lavandería')
-        ->assertSet('precio', '120.50')
-        ->assertSet('descripcion', 'Camisetas y trajes.')
-        ->assertDispatched('modal-show', name: 'servicio-form')
-        ->assertSee('Editar servicio')
-        ->assertSee('Guardar cambios');
-
-    // Y la categoría que se acaba de abrir es la que se guarda si se vuelve a
-    // enviar sin tocarla.
-    $componente->call('guardar')
-        ->assertHasNoErrors();
-
-    expect($servicio->fresh()->categoria)->toBe('Lavandería');
-});
-
-test('el alta se abre vacia desde el mismo camino que el boton nuevo servicio', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar', 'Vinos.');
-
-    $componente = Livewire::actingAs($this->admin)->test(FormModal::class)
-        ->call('editar', $servicio->id)
-        ->assertSet('nombre', 'Minibar premium');
-
-    $componente->set('nombre', 'Otro')->call('crear')
-        ->assertSet('servicioId', null)
-        ->assertSet('isOpenEditModal', true)
-        ->assertSet('nombre', '')
-        ->assertSet('precio', '')
-        ->assertSet('categoria', Servicio::CATEGORIA_POR_DEFECTO)
-        ->assertDispatched('modal-show', name: 'servicio-form')
-        ->assertSee('Nuevo servicio')
-        ->assertSee('Agregar servicio');
-});
-
-test('tras guardar el formulario vuelve al modo alta con el dialogo cerrado', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-
-    Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->call('editar', $servicio->id)
-        ->set('categoria', 'Spa y Bienestar')
-        ->call('guardar')
-        ->assertHasNoErrors()
-        ->assertSet('isOpenEditModal', false)
-        ->assertSet('servicioId', null)
-        ->assertSet('categoria', Servicio::CATEGORIA_POR_DEFECTO)
-        ->assertSee('Nuevo servicio');
-});
-
-test('el formulario rechaza una categoria ajena al enumerado del hotel', function () {
-    Livewire::withoutLazyLoading();
-
-    Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->set('nombre', 'Servicio raro')
-        ->set('categoria', 'Helipuerto')
-        ->set('precio', '10.00')
-        ->call('guardar')
-        ->assertHasErrors(['categoria']);
-
-    expect(Servicio::where('nombre', 'Servicio raro')->exists())->toBeFalse();
-});
-
-test('el formulario rechaza un nombre duplicado y un precio invalido', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
-
-    Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->set('nombre', 'Minibar premium')
-        ->set('precio', '350.00')
+        ->set('nombre', 'Desayunno bufett')
+        ->set('precio', '320.00')
         ->call('guardar')
         ->assertHasErrors(['nombre']);
 
-    // En edición el propio servicio no cuenta como duplicado.
+    expect(Servicio::where('nombre', 'Desayunno bufett')->exists())->toBeFalse();
+});
+
+test('editar un servicio con nombre fuera del catálogo lo conserva como opción', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Traslado privado', 'precio' => 450.00]);
+
     Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
+        ->test(Servicios::class)
         ->call('editar', $servicio->id)
-        ->set('precio', '0')
+        ->assertSet('nombre', 'Traslado privado')
+        ->assertSet('nombreFueraDeCatalogo', 'Traslado privado')
+        ->set('precio', '480.00')
         ->call('guardar')
-        ->assertHasErrors(['precio']);
+        ->assertHasNoErrors()
+        ->assertDispatched('notificacion', mensaje: 'Servicio actualizado correctamente.');
 
-    expect((float) $servicio->fresh()->precio)->toBe(350.00);
+    expect($servicio->fresh()->nombre)->toBe('Traslado privado')
+        ->and((float) $servicio->fresh()->precio)->toBe(480.00);
 });
 
-test('el contenedor muestra el mensaje y cierra el modal tras guardar', function () {
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->dispatch('servicio-guardada', mensaje: 'Servicio creado correctamente.')
-        ->assertDispatched('modal-close', name: 'servicio-form')
-        ->assertSet('mensajeExito', 'Servicio creado correctamente.')
-        ->assertSee('Servicio creado correctamente.');
+test('el nombre fuera de catálogo se descarta al abrir el modal de creación', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Traslado privado']);
+
+    $componente = Livewire::actingAs($this->admin)->test(Servicios::class)
+        ->call('editar', $servicio->id)
+        ->assertSet('nombreFueraDeCatalogo', 'Traslado privado')
+        ->call('crear');
+
+    expect($componente->get('nombre'))->toBe('')
+        ->and($componente->get('nombreFueraDeCatalogo'))->toBeNull()
+        ->and($componente->html())->not->toContain('value="Traslado privado"');
 });
 
-test('el contenedor elimina un servicio que todavia no tiene cargos', function () {
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
+test('un super-admin crea un servicio con categoría desde el modal', function () {
+    $categoria = categoriaDe('Alimentación');
 
     Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('nombre', 'Desayuno buffet')
+        ->set('descripcion', 'Café, jugo y panadería caliente.')
+        ->set('categoria_id', $categoria->id)
+        ->set('precio', '320.00')
+        ->call('guardar')
+        ->assertHasNoErrors()
+        ->assertDispatched('notificacion', mensaje: 'Servicio creado correctamente.')
+        ->assertSet('mostrarModal', false);
+
+    $servicio = Servicio::where('nombre', 'Desayuno buffet')->first();
+
+    expect($servicio)->not->toBeNull()
+        ->and($servicio->descripcion)->toBe('Café, jugo y panadería caliente.')
+        ->and($servicio->categoria_id)->toBe($categoria->id)
+        ->and((float) $servicio->precio)->toBe(320.00)
+        ->and($servicio->activo)->toBeTrue();
+});
+
+test('una descripción vacía se guarda como nula con categoría obligatoria', function () {
+    $categoria = categoriaDe('Lavandería');
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('nombre', 'Lavandería')
+        ->set('descripcion', '')
+        ->set('categoria_id', $categoria->id)
+        ->set('precio', '180.00')
+        ->call('guardar')
+        ->assertHasNoErrors();
+
+    $servicio = Servicio::where('nombre', 'Lavandería')->first();
+
+    expect($servicio->descripcion)->toBeNull()
+        ->and($servicio->categoria_id)->toBe($categoria->id);
+});
+
+test('el modal rechaza guardar sin categoría', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('nombre', 'Desayuno buffet')
+        ->set('categoria_id', null)
+        ->set('precio', '320.00')
+        ->call('guardar')
+        ->assertHasErrors(['categoria_id']);
+
+    expect(Servicio::where('nombre', 'Desayuno buffet')->exists())->toBeFalse();
+});
+
+test('un servicio heredado sin categoría no puede volver a guardarse hasta elegir una', function () {
+    $servicio = Servicio::factory()->sinCategoria()->create(['nombre' => 'Desayuno buffet']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('editar', $servicio->id)
+        ->assertSet('categoria_id', null)
+        ->call('guardar')
+        ->assertHasErrors(['categoria_id']);
+
+    expect($servicio->fresh()->categoria_id)->toBeNull();
+});
+
+test('el modal rechaza una categoría que no existe', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('nombre', 'Desayuno buffet')
+        ->set('categoria_id', 9999)
+        ->set('precio', '320.00')
+        ->call('guardar')
+        ->assertHasErrors(['categoria_id']);
+
+    expect(Servicio::where('nombre', 'Desayuno buffet')->exists())->toBeFalse();
+});
+
+test('abrir el modal de edición no altera el filtro de la tabla', function () {
+    $alimentacion = categoriaDe('Alimentación');
+    categoriaDe('Bienestar');
+
+    $servicio = Servicio::factory()->create([
+        'nombre' => 'Desayuno buffet',
+        'categoria_id' => $alimentacion->id,
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->set('categoriaFiltro', (string) $alimentacion->id)
+        ->call('editar', $servicio->id)
+        // El modal toma la categoría del servicio...
+        ->assertSet('categoria_id', $alimentacion->id)
+        // ...y el filtro de la tabla queda intacto.
+        ->assertSet('categoriaFiltro', (string) $alimentacion->id);
+});
+
+test('el modal lista todas las categorías, incluidas las inactivas', function () {
+    $retirada = Categoria::factory()->inactiva()->create(['nombre' => 'Categoría retirada']);
+
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    // El modal sí la ofrece para no perder el valor de un servicio ya clasificado.
+    expect($html)->toContain('value="'.$retirada->id.'"')
+        ->toContain('Selecciona una categoría...');
+});
+
+test('el modal rechaza una descripción demasiado larga', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('nombre', 'Desayuno buffet')
+        ->set('descripcion', str_repeat('a', 501))
+        ->set('precio', '320.00')
+        ->call('guardar')
+        ->assertHasErrors(['descripcion']);
+
+    expect(Servicio::where('nombre', 'Desayuno buffet')->exists())->toBeFalse();
+});
+
+test('editar carga la descripción y la guardada la actualiza', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'descripcion' => 'Café, jugo y panadería caliente.', 'precio' => 320.00]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('editar', $servicio->id)
+        ->assertSet('servicioId', $servicio->id)
+        ->assertSet('nombre', 'Desayuno buffet')
+        ->assertSet('descripcion', 'Café, jugo y panadería caliente.')
+        ->set('descripcion', 'Café, jugo, fruta y panadería caliente.')
+        ->call('guardar')
+        ->assertHasNoErrors()
+        ->assertDispatched('notificacion', mensaje: 'Servicio actualizado correctamente.');
+
+    expect($servicio->fresh()->descripcion)->toBe('Café, jugo, fruta y panadería caliente.');
+});
+
+test('el modal ofrece la categoría como desplegable con la opción deshabilitada', function () {
+    $categoria = categoriaDe('Alimentación');
+
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)->toContain('wire:model="categoria_id"')
+        ->and($html)->toContain('value="" disabled selected class="placeholder">Selecciona una categoría...<')
+        ->and($html)->toContain('value="'.$categoria->id.'"')
+        ->and($html)->toContain('Alimentación');
+});
+
+test('la alerta de éxito se pinta con Alpine escuchando el evento de Livewire', function () {
+    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+
+    expect($html)
+        ->toContain('x-data="{ show: false, mensaje: \'\' }"')
+        ->toContain('x-on:notificacion.window="show = true; mensaje = $event.detail.mensaje; setTimeout(() => show = false, 3000)"')
+        ->toContain('x-show="show"')
+        ->toContain('x-transition')
+        ->toContain('<span x-text="mensaje"')
+        ->toContain('aria-live="polite"')
+        // El toast arranca oculto: no debe quedar un mensaje de éxito quemado en
+        // el HTML después de recargar la página.
+        ->toContain('x-cloak')
+        ->and($html)->not->toContain('Servicio eliminado correctamente.');
+});
+
+test('las acciones de la tabla emiten el evento de notificación', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
         ->call('eliminar', $servicio->id)
-        ->assertSet('mensajeExito', 'Servicio eliminado correctamente.')
-        ->assertDontSee('Minibar premium');
+        ->assertDispatched('notificacion', mensaje: 'Servicio eliminado correctamente.');
+
+    $otro = Servicio::factory()->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('alternarActivo', $otro->id)
+        ->assertDispatched('notificacion', mensaje: 'Servicio desactivado correctamente.');
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('alternarActivo', $otro->id)
+        ->assertDispatched('notificacion', mensaje: 'Servicio activado correctamente.');
+});
+
+test('el componente ya no expone la propiedad mensajeExito', function () {
+    expect(property_exists(Servicios::class, 'mensajeExito'))->toBeFalse();
+});
+
+test('alternarActivo desactiva y reactiva sin eliminar el servicio', function () {
+    $servicio = Servicio::factory()->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('alternarActivo', $servicio->id)
+        ->assertDispatched('notificacion', mensaje: 'Servicio desactivado correctamente.');
+
+    expect($servicio->fresh()->activo)->toBeFalse();
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('alternarActivo', $servicio->id)
+        ->assertDispatched('notificacion', mensaje: 'Servicio activado correctamente.');
+
+    expect($servicio->fresh()->activo)->toBeTrue();
+});
+
+test('un super-admin elimina un servicio desde la fila', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('eliminar', $servicio->id)
+        ->assertDispatched('notificacion', mensaje: 'Servicio eliminado correctamente.');
 
     expect(Servicio::whereKey($servicio->id)->exists())->toBeFalse();
 });
 
-test('un servicio con cargos en folios no se puede eliminar', function () {
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
-    ($this->cargarCargo)($folio, $servicio, ($this->crearEmpleado)('Lucía'));
+test('eliminar una categoría deja al servicio sin categoría en vez de borrarlo', function () {
+    $categoria = Categoria::factory()->create();
+    $servicio = Servicio::factory()->create(['categoria_id' => $categoria->id]);
 
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->call('eliminar', $servicio->id)
-        ->assertSet('mensajeError', 'No se puede eliminar: el servicio ya tiene cargos registrados en folios.')
-        ->assertSet('mensajeExito', null)
-        ->assertSee('ya tiene cargos registrados en folios');
+    $categoria->delete();
 
-    expect(Servicio::whereKey($servicio->id)->exists())->toBeTrue();
-});
-
-test('el formulario de cargos ofrece solo folios con huesped en el hotel', function () {
-    $ocupada = ($this->crearFolio)('Confirmada');
-    ($this->crearFolio)('Pendiente');
-    ($this->crearFolio)('Finalizada');
-
-    $ids = Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->instance()
-        ->reservas
-        ->pluck('id')
-        ->all();
-
-    expect($ids)->toBe([$ocupada->id]);
-});
-
-test('el formulario de cargos se presenta con el contrato visual acordado', function () {
-    Livewire::withoutLazyLoading();
-
-    ($this->crearFolio)();
-    ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    ($this->crearEmpleado)('Lucía');
-
-    $html = Livewire::actingAs($this->admin)->test(Cargos::class)->html();
-
-    expect($html)->toContain('Cargar consumo al folio')
-        ->toContain('El cargo se suma de inmediato al total de check-out del huésped.')
-        ->toContain('animate-modal-card-in')
-        ->toContain('rounded-2xl')
-        ->toContain('shadow-2xl')
-        // Cantidad y precio aplicado: dos campos con icono y su hueco `pl-11`.
-        ->and(substr_count($html, 'pl-11 pr-3.5'))->toBe(2)
-        ->and($html)->toContain('absolute left-3.5 top-1/2 size-5')
-        // Folio, servicio y empleado: desplegables redondeados con `pl-10`.
-        ->and(substr_count($html, 'focus:ring-amber-500 pl-10'))->toBe(3)
-        ->and($html)->toContain('rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-xl shadow-slate-950/5')
-        // Importe del cargo en curso y acción de guardado protegida.
-        ->toContain('Importe del cargo')
-        ->toContain('Cargar al folio')
-        ->toContain('wire:loading.attr="disabled"')
-        ->toContain('Cargando...');
-});
-
-test('el formulario de cargos avisa cuando no hay ninguna habitacion ocupada', function () {
-    Livewire::withoutLazyLoading();
-
-    $html = Livewire::actingAs($this->admin)->test(Cargos::class)->html();
-
-    expect($html)->toContain('No hay habitaciones ocupadas')
-        ->toContain('Los consumos se cargan sobre reservaciones con check-in realizado.')
-        ->not->toContain('Selecciona un folio...');
-});
-
-test('elegir un servicio propone su precio de catalogo y deja aplicarlo', function () {
-    Livewire::withoutLazyLoading();
-
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-
-    Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->set('reserva_id', (string) $folio->id)
-        ->set('servicio_id', (string) $servicio->id)
-        ->assertSet('precio_aplicado', '350.00')
-        // El campo sigue siendo editable para aplicar un descuento.
-        ->set('precio_aplicado', '300.00')
-        ->set('cantidad', '3')
-        ->assertSee('$900.00');
-});
-
-test('el cargo se guarda en el folio con cantidad precio aplicado y empleado responsable', function () {
-    Livewire::withoutLazyLoading();
-
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->set('reserva_id', (string) $folio->id)
-        ->set('servicio_id', (string) $servicio->id)
-        ->set('cantidad', '3')
-        ->set('precio_aplicado', '300.00')
-        ->set('empleado_id', (string) $empleado->id_empleado)
-        ->call('guardar')
-        ->assertHasNoErrors()
-        ->assertDispatched('cargo-registrado', mensaje: 'Consumo de Minibar premium cargado al folio correctamente.');
-
-    $cargo = ReservaServicio::firstOrFail();
-
-    expect($cargo->reserva_id)->toBe($folio->id)
-        ->and($cargo->servicio_id)->toBe($servicio->id)
-        ->and($cargo->cantidad)->toBe(3)
-        ->and((float) $cargo->precio_aplicado)->toBe(300.00)
-        ->and($cargo->empleado_id)->toBe($empleado->id_empleado)
-        // El subtotal sale del precio aplicado, no del precio de catálogo.
-        ->and((float) $cargo->subtotal)->toBe(900.00);
-});
-
-test('el cargo se suma al total de check-out de la reservacion', function () {
-    Livewire::withoutLazyLoading();
-
-    // Cuatro noches a $899 = $3,596.00 de tarifa.
-    $folio = ($this->crearFolio)('Confirmada', 899.00);
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    expect($folio->totalNoches())->toBe(4.0)
-        ->and($folio->tarifaHabitaciones())->toBe(3596.00)
-        ->and($folio->totalConsumos())->toBe(3596.00)
-        ->and($folio->saldoPendiente())->toBe(3596.00);
-
-    Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->set('reserva_id', (string) $folio->id)
-        ->set('servicio_id', (string) $servicio->id)
-        ->set('cantidad', '2')
-        ->set('precio_aplicado', '350.00')
-        ->set('empleado_id', (string) $empleado->id_empleado)
-        ->call('guardar')
-        ->assertHasNoErrors();
-
-    $folio->refresh();
-
-    expect($folio->subtotalServicios())->toBe(700.00)
-        ->and($folio->totalConsumos())->toBe(4296.00)
-        ->and($folio->saldoPendiente())->toBe(4296.00);
-});
-
-test('los abonos del huesped se descuentan del saldo del folio', function () {
-    $folio = ($this->crearFolio)('Confirmada', 899.00);
-
-    $folio->pagos()->create([
-        'monto' => 1000.00,
-        'metodo_pago' => 'Efectivo',
-        'fecha_pago' => now()->toDateString(),
-    ]);
-
-    expect($folio->totalPagado())->toBe(1000.00)
-        ->and($folio->saldoPendiente())->toBe(2596.00);
-});
-
-test('el resumen del formulario refleja el estado de cuenta del folio seleccionado', function () {
-    Livewire::withoutLazyLoading();
-
-    $folio = ($this->crearFolio)('Confirmada', 899.00);
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    ($this->cargarCargo)($folio, $servicio, $empleado, 2);
-
-    $html = Livewire::actingAs($this->admin)
-        ->test(Cargos::class, ['reserva_id' => (string) $folio->id])
-        ->html();
-
-    expect($html)
-        ->toContain('Tarifa de habitación')
-        ->toContain('$3,596.00')
-        ->toContain('Consumos extras')
-        ->toContain('$700.00')
-        ->toContain('Total de check-out')
-        ->toContain('$4,296.00')
-        ->toContain('Saldo pendiente')
-        ->toContain('Cargos del folio')
-        ->toContain('Minibar premium')
-        ->toContain('Ana López')
-        ->toContain('Lucía');
-});
-
-test('el formulario de cargos rechaza un folio que no tiene huesped en el hotel', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
-    $empleado = ($this->crearEmpleado)('Lucía');
-    $fuera = ($this->crearFolio)('Finalizada');
-
-    Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->set('reserva_id', (string) $fuera->id)
-        ->set('servicio_id', (string) $servicio->id)
-        ->set('precio_aplicado', '350.00')
-        ->set('empleado_id', (string) $empleado->id_empleado)
-        ->call('guardar')
-        ->assertHasErrors(['reserva_id']);
-
-    expect(ReservaServicio::count())->toBe(0);
-});
-
-test('el formulario de cargos exige cantidad positiva y empleado responsable', function () {
-    Livewire::withoutLazyLoading();
-
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00);
-
-    Livewire::actingAs($this->admin)
-        ->test(Cargos::class)
-        ->set('reserva_id', (string) $folio->id)
-        ->set('servicio_id', (string) $servicio->id)
-        ->set('cantidad', '0')
-        ->set('precio_aplicado', '350.00')
-        ->call('guardar')
-        ->assertHasErrors(['cantidad', 'empleado_id']);
-
-    expect(ReservaServicio::count())->toBe(0);
-});
-
-test('el formulario de cargos precarga al empleado de la cuenta con sesion', function () {
-    Livewire::withoutLazyLoading();
-
-    $empleado = ($this->crearEmpleado)('Lucía', 'Recepcionista', $this->admin->id);
-
-    expect(Livewire::actingAs($this->admin)->test(Cargos::class)->get('empleado_id'))
-        ->toBe((string) $empleado->id_empleado);
-});
-
-test('el contenedor cierra el modal de cargos y muestra el mensaje', function () {
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->dispatch('cargo-registrado', mensaje: 'Consumo de Minibar premium cargado al folio correctamente.')
-        ->assertDispatched('modal-close', name: 'servicio-cargo')
-        ->assertSet('mensajeExito', 'Consumo de Minibar premium cargado al folio correctamente.');
-});
-
-test('la tabla de cargos muestra el folio el huesped y el empleado responsable', function () {
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    ($this->cargarCargo)($folio, $servicio, $empleado, 2);
-
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->assertSee('Cargos al folio')
-        ->assertSee('Consumos extras de las habitaciones ocupadas. Se suman al total de check-out.')
-        ->assertSee('Ana López')
-        ->assertSee('Lucía')
-        ->assertSee('$700.00');
-});
-
-test('la tabla de cargos avisa cuando todavia no hay ninguno', function () {
-    Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->assertSee('Todavía no hay cargos');
-});
-
-test('sin permiso de cargos no se ve la seccion ni el dialogo', function () {
-    $usuario = User::factory()->create();
-    $usuario->givePermissionTo('servicios.ver');
-
-    $html = Livewire::actingAs($usuario)->test(ServiciosIndex::class)->html();
-
-    expect($html)->toContain('Nuevo servicio')
-        ->not->toContain('Cargar consumo')
-        ->not->toContain('Cargos al folio')
-        ->not->toContain('servicio-cargo');
-});
-
-test('recepcionista alcanza el modulo y ve la seccion de cargos', function () {
-    $recepcionista = User::factory()->create();
-    $recepcionista->assignRole('recepcionista');
-
-    expect($recepcionista->can('servicios.cargos'))->toBeTrue();
-
-    $html = Livewire::actingAs($recepcionista)->test(ServiciosIndex::class)->html();
-
-    expect($html)->toContain('Cargar consumo')
-        ->toContain('Cargos al folio')
-        ->toContain('servicio-cargo');
-});
-
-test('el estado de cuenta del huesped refleja el cargo registrado', function () {
-    $folio = ($this->crearFolio)('Confirmada', 899.00);
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    ($this->cargarCargo)($folio, $servicio, $empleado, 2);
-
-    $this->actingAs(User::findOrFail($folio->user_id))
-        ->get(route('mis-reservaciones'))
-        ->assertOk()
-        ->assertSee('Minibar premium')
-        ->assertSee('$700.00');
-});
-
-test('la pantalla de servicios carga el catalogo sin una consulta por fila', function () {
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Minibar premium', 350.00, 'Minibar');
-    $empleado = ($this->crearEmpleado)('Lucía');
-
-    foreach (range(1, 8) as $indice) {
-        ($this->cargarCargo)($folio, $servicio, $empleado, $indice);
-    }
-
-    $componente = Livewire::actingAs($this->admin)->test(ServiciosIndex::class);
-    $consultas = [];
-
-    DB::listen(function ($query) use (&$consultas): void {
-        $consultas[] = $query->sql;
-    });
-
-    $componente->call('$refresh');
-
-    // El cliente y la habitación del folio se cargan una sola vez para los ocho
-    // cargos, en lugar de una consulta por fila.
-    expect(collect($consultas)->filter(fn (string $sql) => str_contains($sql, '"clientes"')))
-        ->toHaveCount(1)
-        ->and(collect($consultas)->filter(fn (string $sql) => str_contains($sql, '"habitaciones"')))
-        ->toHaveCount(1);
-});
-
-test('la pantalla de servicios responde al super admin con el catalogo completo', function () {
-    $folio = ($this->crearFolio)();
-    $servicio = ($this->crearServicio)('Spa relajante', 1200.00, 'Spa y Bienestar', 'Masaje de 60 minutos.');
-    ($this->crearEmpleado)('Lucía');
-
-    // Un consumo con precio aplicado para que el folio aparezca en la lista.
-    $consumidor = ($this->crearEmpleado)('Mateo');
-
-    ($this->cargarCargo)($folio, $servicio, $consumidor, 1, 350.00);
-
-    $this->actingAs($this->admin)
-        ->get(route('servicios'))
-        ->assertOk()
-        ->assertSee('Spa relajante')
-        ->assertSee('Masaje de 60 minutos.')
-        ->assertSee('Spa y Bienestar')
-        ->assertSee('$1,200.00')
-        ->assertSee('Cargar consumo')
-        // El folio también aparece en la lista de cargos recientes.
-        ->assertSee('Ana López')
-        ->assertSee('$350.00');
-
-    expect($folio->serviciosAsignados()->count())->toBe(1);
-});
-
-test('el desplegable marca como seleccionada la categoria que tiene guardada el servicio', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Lavado exprés', 120.50, 'Lavandería');
-
-    $html = Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->call('editar', $servicio->id)
-        ->assertSet('categoria', 'Lavandería')
-        ->html();
-
-    /*
-     | El <select> oculto es el que alimenta a `wire:model`. Si ninguna de sus
-     | <option> va marcada, el navegador se queda con la primera de la lista
-     | ("Minibar") y ese es el valor que viaja al servidor y acaba en la base de
-     | datos, por más que el botón muestre otra categoría.
-     */
-    expect($html)->toContain('<option value="Lavandería" selected>')
-        ->and($html)->not->toContain('<option value="Minibar" selected');
-});
-
-test('el desplegable se reconstruye con el valor del servidor y no con el que quedo en el boton', function () {
-    Livewire::withoutLazyLoading();
-
-    $servicio = ($this->crearServicio)('Lavado exprés', 120.50, 'Lavandería');
-
-    $componente = Livewire::actingAs($this->admin)
-        ->test(FormModal::class)
-        ->call('editar', $servicio->id);
-
-    // El morph de Livewire conserva el estado de Alpine, así que el botón puede
-    // quedarse con la etiqueta anterior mientras el <select> ya vale otra cosa.
-    // La raíz del control lleva una clave que depende del valor: cuando este
-    // cambia, Livewire reconstruye el desplegable entero.
-    expect($componente->html())
-        ->toContain('wire:key="categoria-Lavandería"')
-        ->and($componente->html())->not->toContain('wire:key="categoria-Minibar"');
-
-    $componente->set('categoria', 'Restaurante');
-
-    expect($componente->html())
-        ->toContain('wire:key="categoria-Restaurante"')
-        ->toContain('<option value="Restaurante" selected>')
-        ->and($componente->html())->not->toContain('<option value="Lavandería" selected>');
-
-    // El botón del desplegable también se pone al día desde el <select> nativo.
-    expect($componente->html())->toContain('adoptarValorNativo()');
-});
-
-test('el mensaje del contenedor se oculta solo con Alpine', function () {
-    $html = Livewire::actingAs($this->admin)
-        ->test(ServiciosIndex::class)
-        ->dispatch('servicio-guardada', mensaje: 'Servicio creado correctamente.')
-        ->assertSet('mensajeExito', 'Servicio creado correctamente.')
-        ->html();
-
-    expect($html)->toContain('x-data="{ visible: true }"')
-        ->toContain('x-init="setTimeout(() => visible = false, 5000)"')
-        ->toContain('x-show="visible"')
-        ->toContain('x-transition.duration.300ms');
+    expect($servicio->fresh())->not->toBeNull()
+        ->and($servicio->fresh()->categoria_id)->toBeNull();
 });

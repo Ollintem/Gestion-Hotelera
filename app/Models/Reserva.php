@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Reserva extends Model
 {
+    use HasFactory;
+
     protected $table = 'reservas';
 
     /**
@@ -17,6 +20,12 @@ class Reserva extends Model
      * @var list<string>
      */
     public const ESTADOS = ['Pendiente', 'Confirmada', 'Cancelada', 'Finalizada'];
+
+    /**
+     * Estado en el que la reservación ya cerró y sus consumos extras pasaron a
+     * ser facturados.
+     */
+    public const ESTADO_FINALIZADA = 'Finalizada';
 
     /**
      * Reservaciones cuyo huésped ya está en el hotel. Solo sobre ellas se admiten

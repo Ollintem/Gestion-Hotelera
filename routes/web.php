@@ -16,7 +16,7 @@ use App\Livewire\Limpieza;
 use App\Livewire\Pagos;
 use App\Livewire\Reportes;
 use App\Livewire\Reservaciones;
-use App\Livewire\Servicios\Index as ServiciosIndex;
+use App\Livewire\Servicios;
 use App\Livewire\Temporadas;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -95,7 +95,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:pagos.ver')
         ->name('pagos');
 
-    Route::get('/servicios', ServiciosIndex::class)
+    Route::get('/servicios', Servicios::class)
         ->middleware('permission:servicios.ver')
         ->name('servicios');
 

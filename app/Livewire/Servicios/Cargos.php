@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Servicios;
 
+use App\Models\Categoria;
 use App\Models\Empleado;
 use App\Models\Reserva;
 use App\Models\ReservaServicio;
@@ -117,14 +118,24 @@ class Cargos extends Component
     }
 
     /**
-     * Catálogo que recepción puede cargar al folio.
+     * Catálogo que recepción puede cargar al folio, agrupado por el nombre de su
+     * categoría. La clasificación vive en `categoria_id`, así que el orden sale
+     * de una subconsulta sobre `categorias` en lugar de la antigua columna de
+     * texto, que hoy está vacía.
      *
      * @return Collection<int, Servicio>
      */
     #[Computed]
     public function servicios(): Collection
     {
-        return Servicio::orderBy('categoria')->orderBy('nombre')->get();
+        return Servicio::with('clasificacion')
+            ->orderBy(
+                Categoria::query()
+                    ->select('nombre')
+                    ->whereColumn('categorias.id', 'servicios.categoria_id')
+            )
+            ->orderBy('nombre')
+            ->get();
     }
 
     /**

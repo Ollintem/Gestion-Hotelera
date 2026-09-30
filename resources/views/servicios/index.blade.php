@@ -9,94 +9,48 @@
      ====================================================== --}}
 
 <div>
-    {{-- Los avisos se montan sobre `visible` para que Alpine los desvanzca a los
-         5 s, igual que las notificaciones de sesión de `x-flash-messages`. --}}
-    @if ($mensajeExito)
-        <div
-            x-data="{ visible: true }"
-            x-init="setTimeout(() => visible = false, 5000)"
-            x-show="visible"
-            x-transition.duration.300ms
-            class="mb-4"
-        >
-            <flux:callout variant="success" icon="check-circle">
-                <p>{{ $mensajeExito }}</p>
-            </flux:callout>
-        </div>
-    @endif
+    {{-- Alerta de latencia cero: Alpine escucha el evento y se pinta sin esperar
+         a que Livewire re-renderice el bloque. --}}
+    <div
+        x-data="{ show: false, mensaje: '' }"
+        x-on:notificacion.window="show = true; mensaje = $event.detail.mensaje; setTimeout(() => show = false, 3000)"
+        x-show="show"
+        x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 -translate-y-2"
+        class="fixed top-4 right-4 z-50 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-lg"
+        role="status"
+        aria-live="polite"
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5 shrink-0 text-emerald-600">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+        </svg>
 
-    @if ($mensajeError)
-        <div
-            x-data="{ visible: true }"
-            x-init="setTimeout(() => visible = false, 5000)"
-            x-show="visible"
-            x-transition.duration.300ms
-            class="mb-4"
+        <span x-text="mensaje" class="text-sm font-semibold text-emerald-800"></span>
+
+        <button
+            type="button"
+            x-on:click="show = false"
+            class="shrink-0 text-emerald-600 transition-colors hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            aria-label="Cerrar notificación"
         >
-            <flux:callout variant="danger" icon="exclamation-triangle">
-                <p>{{ $mensajeError }}</p>
-            </flux:callout>
-        </div>
-    @endif
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+        </button>
+    </div>
 
     @include('servicios.partials.header')
 
-    @if ($this->hayFiltrosActivos)
-        @php
-            $visibles = $this->servicios->total();
-            $totales = $this->totalServicios;
-        @endphp
+    @include('servicios.partials.kpis')
 
-        <div class="mt-4 animate-fade-in">
-            <flux:callout variant="secondary" icon="information-circle">
-                <p>Mostrando {{ $visibles }} {{ $visibles === 1 ? 'servicio' : 'servicios' }} de {{ $totales }}.</p>
-            </flux:callout>
-        </div>
-    @endif
+    @include('servicios.partials.filtros')
 
-    <div class="mt-8 animate-fade-in-up">
-        @include('servicios.partials.table')
-    </div>
+    @include('servicios.partials.table')
 
-    @can('servicios.cargos')
-        <div class="mt-8 animate-fade-in-up [animation-delay:120ms]">
-            @include('servicios.partials.cargos-table')
-        </div>
-    @endcan
-
-    {{-- `wire:ignore` (no `.self`) es obligatorio en la raíz del modal. Flux solo
-         protege el <dialog> con `wire:ignore.self`, dejando a su envoltorio
-         <ui-modal> expuesto: si el contenedor re-renderiza, el morph recrea el
-         <dialog> y pierde el atributo `open` que puso showModal(), lo que
-         provoca el parpadeo. Ignorando todo el subárbol el estado nativo
-         sobrevive a cualquier re-renderizado del contenedor. Los formularios son
-         subcomponentes con clave estable, así que siguen actualizándose con sus
-         propias peticiones. --}}
-    <div wire:ignore>
-        {{-- `variant="bare"` deja el <dialog> transparente: el cristal de fondo,
-             la tarjeta blanca y las animaciones se construyen en los parciales.
-
-             El formulario no es diferido: sus listeners tienen que estar
-             registrados antes del primer clic, y el <dialog> solo se abre cuando
-             el servidor ya le devolvió los datos del servicio. --}}
-        <flux:modal
-            name="servicio-form"
-            variant="bare"
-            class="novastay-servicio-modal w-full max-w-2xl"
-        >
-            <livewire:servicios.form-modal wire:key="formulario-servicio" />
-        </flux:modal>
-    </div>
-
-    @can('servicios.cargos')
-        <div wire:ignore>
-            <flux:modal
-                name="servicio-cargo"
-                variant="bare"
-                class="novastay-servicio-modal w-full max-w-3xl"
-            >
-                <livewire:servicios.cargos wire:key="formulario-cargo" />
-            </flux:modal>
-        </div>
-    @endcan
+    @include('servicios.partials.modal-form')
 </div>

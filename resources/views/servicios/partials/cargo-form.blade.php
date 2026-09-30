@@ -30,7 +30,7 @@
     })->all();
 
     $serviciosOpciones = $this->servicios->mapWithKeys(fn ($servicio) => [
-        $servicio->id => $servicio->categoria.' · '.$servicio->nombre.' — $'.number_format((float) $servicio->precio, 2),
+        $servicio->id => $servicio->clasificacion?->nombre.' · '.$servicio->nombre.' — $'.number_format((float) $servicio->precio, 2),
     ])->all();
 
     $empleadosOpciones = $this->empleados->mapWithKeys(fn ($empleado) => [
