@@ -147,9 +147,6 @@ class Servicios extends Component
                 'string',
                 'max:100',
                 Rule::in($this->nombresAceptados()),
-                $this->servicioId === null
-                    ? Rule::unique('servicios', 'nombre')
-                    : Rule::unique('servicios', 'nombre')->ignore($this->servicioId),
             ],
             'descripcion' => ['nullable', 'string', 'max:500'],
             'categoria_id' => ['required', 'integer', 'exists:categorias,id'],

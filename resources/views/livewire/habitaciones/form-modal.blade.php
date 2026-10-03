@@ -104,6 +104,8 @@
                     <x-dropdown
                         id="tipo_habitacion_id"
                         wire:model="tipo_habitacion_id"
+                        modelo="tipo_habitacion_id"
+                        clave="tipo-habitacion-{{ $tipo_habitacion_id }}"
                         variant="soft"
                         required
                         :selected="$tipo_habitacion_id"
