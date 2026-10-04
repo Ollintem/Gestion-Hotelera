@@ -4,6 +4,7 @@
     'options' => [],
     'variant' => 'solid',
     'clave' => null,
+    'modelo' => null,
 ])
 
 @php
@@ -79,6 +80,7 @@
         selected: @js((string) $selected),
         options: @js($opciones),
         placeholder: @js($placeholder),
+        modelo: @js($modelo),
         get selectedLabel() {
             if (this.selected === '' && this.placeholder !== null) {
                 return this.placeholder;
@@ -92,9 +94,10 @@
             return String(value) === String(this.selected);
         },
         /*
-         | El select oculto es la verdad: cuando el navegador lo haya movido
-         | (morph del servidor o un cambio externo) el botón se pone al día antes
-         | de mostrar el menú.
+         | Cuando el desplegable tiene `modelo`, la verdad es la propiedad de
+         | Livewire y el <select> oculto pasa a ser su espejo en el DOM. Antes de
+         | que llegue el morph, el navegador puede haber movido el control por su
+         | cuenta: el botón se pone al día en cuanto se abre el menú.
          */
         adoptarValorNativo() {
             const native = this.$el.querySelector('select');
@@ -108,6 +111,12 @@
 
             this.open = !this.open;
         },
+        /*
+         | El valor viaja en la misma petición que el clic cuando hay `modelo`:
+         | antes relied en el evento del <select> oculto, que es una segunda
+         | petición asíncrona que `wire:submit` puede adelantar y enviar el
+         | guardado con el valor anterior. Sin `modelo` sigue el camino antiguo.
+         */
         select(value) {
             this.selected = value;
 
@@ -115,8 +124,15 @@
 
             if (native) {
                 native.value = value;
-                native.dispatchEvent(new Event('input', { bubbles: true }));
-                native.dispatchEvent(new Event('change', { bubbles: true }));
+
+                if (this.modelo === null) {
+                    native.dispatchEvent(new Event('input', { bubbles: true }));
+                    native.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            if (this.modelo !== null) {
+                this.$wire.set(this.modelo, value);
             }
 
             this.open = false;

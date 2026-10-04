@@ -58,7 +58,7 @@ test('el panel se estructura en tarjetas KPI, barra de filtros y tabla de servic
     expect($html)
         // Sección 1: rejilla de cuatro tarjetas KPI.
         ->toContain('grid grid-cols-1 md:grid-cols-4 gap-4 mb-6')
-        ->toContain('bg-white rounded-2xl border border-slate-100 p-4 shadow-sm')
+        ->toContain('relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-amber-300 hover:shadow-md')
         ->toContain('CATÁLOGO')
         ->toContain('CATEGORÍAS')
         ->toContain('CARGOS REGISTRADOS')
@@ -66,6 +66,8 @@ test('el panel se estructura en tarjetas KPI, barra de filtros y tabla de servic
         // Sección 2: buscador a la izquierda, filtro a la derecha.
         ->toContain('flex gap-4 mb-6')
         ->toContain('placeholder="Buscar por nombre o descripción..."')
+        // Los anillos de enfoque ya son ámbar, no naranjas.
+        ->toContain('focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/10')
         ->toContain('Todas las categorías')
         // Sección 3: contenedor de tabla sin bordes verticales.
         ->toContain('bg-white rounded-2xl border border-slate-100 overflow-hidden')
@@ -75,7 +77,7 @@ test('el panel se estructura en tarjetas KPI, barra de filtros y tabla de servic
         ->toContain('PRECIO (MXN)')
         ->toContain('CARGOS')
         ->toContain('ACCIONES')
-        ->toContain('text-xs font-bold uppercase tracking-wider text-slate-400')
+        ->toContain('text-xs font-semibold uppercase tracking-wider text-slate-600')
         ->toContain('Desayuno buffet')
         ->toContain('$320.00')
         ->toContain('wire:click="editar('.$servicio->id.')"');
@@ -84,8 +86,10 @@ test('el panel se estructura en tarjetas KPI, barra de filtros y tabla de servic
 test('las cabeceras de la tabla se muestran en mayúsculas y en gris', function () {
     $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
-    expect($html)->toContain('px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400')
-        ->and($html)->toContain('px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-400');
+    expect($html)->toContain('px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600')
+        ->and($html)->toContain('px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600')
+        // El encabezado se apoya en un fondo gris para despegarlo del cuerpo.
+        ->and($html)->toContain('<thead class="bg-slate-100">');
 });
 
 test('el nombre va en negrita y la descripción debajo en gris claro', function () {
@@ -101,7 +105,7 @@ test('el nombre va en negrita y la descripción debajo en gris claro', function 
         ->toContain('Café, jugo y panadería caliente.');
 });
 
-test('la categoría se muestra como badge naranja y los cargos como total', function () {
+test('la categoría se muestra como badge ámbar y los cargos como total', function () {
     $categoria = categoriaDe('Alimentación');
     $servicio = Servicio::factory()->create(['nombre' => 'Desayuno buffet', 'categoria_id' => $categoria->id]);
 
@@ -112,10 +116,12 @@ test('la categoría se muestra como badge naranja y los cargos como total', func
 
     $fila = cuerpoTabla(Livewire::actingAs($this->admin)->test(Servicios::class)->html());
 
-    expect($fila)->toContain('inline-flex items-center px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-xs font-semibold')
+    expect($fila)->toContain('inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800')
         ->toContain('Alimentación')
         // El contador de cargos de la fila.
-        ->toMatch('/text-slate-700 font-medium">\s*3\s*</');
+        ->toMatch('/text-slate-700 font-medium">\s*3\s*</')
+        // La paleta del módulo es ámbar: el badge no debe volver al naranja.
+        ->and($fila)->not->toContain('orange-');
 });
 
 test('un servicio heredado sin categoría muestra el texto de reemplazo', function () {
@@ -292,19 +298,51 @@ test('la tabla pagina el catálogo en bloques de diez', function () {
     expect($componente->viewData('servicios')->count())->toBe(3);
 });
 
-test('el modal ofrece un desplegable con la opción deshabilitada y el catálogo cerrado', function () {
+test('el modal ofrece el catálogo cerrado en un desplegable de Alpine etiquetado NOMBRE', function () {
     $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
-    expect($html)->toContain('<select')
-        ->and($html)->toContain('wire:model="nombre"')
-        ->and($html)->toContain('value="" disabled selected class="placeholder">Selecciona un servicio...<')
-        ->and($html)->toContain('>Servicio a la habitación<')
-        ->and($html)->toContain('Desayuno buffet')
-        ->and($html)->toContain('>Lavandería<')
-        ->and($html)->toContain('Spa y masajes')
-        ->and($html)->toContain('>Traslado al aeropuerto<')
+    expect($html)
+        // La etiqueta del campo pasó de NÚMERO a NOMBRE.
+        ->toContain('for="nombre"')
+        ->toContain('>Nombre</label>')
+        ->not->toContain('>Número</label>')
+        ->not->toContain('NÚMERO')
         // El campo ya no es un input de texto libre.
-        ->and($html)->not->toContain('placeholder="Ejemplo: Desayuno buffet"');
+        ->not->toContain('placeholder="Ejemplo: Desayuno buffet"')
+        // El <select> nativo sobrevive como espejo oculto del estado: es el que
+        // conserva el enlace con `wire:model` y el `name` del formulario.
+        ->toContain('wire:model="nombre"')
+        ->toContain('class="sr-only"')
+        ->toContain('tabindex="-1"')
+        ->toContain('aria-hidden="true"')
+        // `required` no puede quedarse en un control que el navegador no puede
+        // enfocar: el componente lo traduce a `aria-required` y la obligatoriedad
+        // la aplica el servidor.
+        ->toContain('aria-required="true"')
+        // La clave inyectada ata el bloque a un `wire:key` para que Morphdom
+        // reconstruya el control cuando el servidor cambia el valor.
+        ->toContain('wire:key="nombre-"')
+        ->toContain("modelo: 'nombre'")
+        // El valor viaja a Livewire en el mismo clic que elige la opción, así
+        // que `wire:submit` no puede adelantarse y guardar la propiedad vacía.
+        ->toContain('this.$wire.set(this.modelo, value)')
+        ->toContain('@click="select($event.currentTarget.dataset.value)"')
+        // Opción de reemplazo: ya no está deshabilitada, solo sin seleccionar.
+        ->toContain('<option value="" selected>Selecciona un servicio...</option>')
+        ->toContain("placeholder: 'Selecciona un servicio...'")
+        ->toContain('role="listbox"')
+        ->toContain('aria-haspopup="listbox"')
+        // El catálogo cerrado, con el nombre haciendo de clave y de etiqueta.
+        ->toContain('data-value="Servicio a la habitación"')
+        ->toContain('>Servicio a la habitación</span>')
+        ->toContain('data-value="Desayuno buffet"')
+        ->toContain('>Desayuno buffet</span>')
+        ->toContain('data-value="Lavandería"')
+        ->toContain('>Lavandería</span>')
+        ->toContain('data-value="Spa y masajes"')
+        ->toContain('>Spa y masajes</span>')
+        ->toContain('data-value="Traslado al aeropuerto"')
+        ->toContain('>Traslado al aeropuerto</span>');
 });
 
 test('el modal rechaza un nombre fuera del catálogo', function () {
@@ -317,6 +355,39 @@ test('el modal rechaza un nombre fuera del catálogo', function () {
         ->assertHasErrors(['nombre']);
 
     expect(Servicio::where('nombre', 'Desayunno bufett')->exists())->toBeFalse();
+});
+
+test('el modal acepta dos servicios con el mismo nombre', function () {
+    $categoria = categoriaDe('Alimentación');
+
+    foreach ([320.00, 340.00] as $precio) {
+        Livewire::actingAs($this->admin)
+            ->test(Servicios::class)
+            ->call('crear')
+            ->set('nombre', 'Desayuno buffet')
+            ->set('categoria_id', $categoria->id)
+            ->set('precio', number_format($precio, 2, '.', ''))
+            ->call('guardar')
+            ->assertHasNoErrors();
+    }
+
+    $servicios = Servicio::where('nombre', 'Desayuno buffet')->get();
+
+    expect($servicios)->toHaveCount(2)
+        ->and($servicios->pluck('precio')->map(fn ($precio) => (float) $precio)->all())->toEqualCanonicalizing([320.00, 340.00]);
+});
+
+test('editar un servicio conservando su nombre no dispara el error de duplicado', function () {
+    $servicio = Servicio::factory()->create(['nombre' => 'Lavandería', 'precio' => 180.00]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('editar', $servicio->id)
+        ->set('precio', '195.00')
+        ->call('guardar')
+        ->assertHasNoErrors();
+
+    expect((float) $servicio->fresh()->precio)->toBe(195.00);
 });
 
 test('editar un servicio con nombre fuera del catálogo lo conserva como opción', function () {
@@ -490,15 +561,40 @@ test('editar carga la descripción y la guardada la actualiza', function () {
     expect($servicio->fresh()->descripcion)->toBe('Café, jugo, fruta y panadería caliente.');
 });
 
-test('el modal ofrece la categoría como desplegable con la opción deshabilitada', function () {
+test('el modal ofrece la categoría como desplegable de Alpine con la opción de reemplazo', function () {
     $categoria = categoriaDe('Alimentación');
 
-    $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+    $servicio = Servicio::factory()->create([
+        'nombre' => 'Desayuno buffet',
+        'categoria_id' => $categoria->id,
+    ]);
 
-    expect($html)->toContain('wire:model="categoria_id"')
-        ->and($html)->toContain('value="" disabled selected class="placeholder">Selecciona una categoría...<')
-        ->and($html)->toContain('value="'.$categoria->id.'"')
-        ->and($html)->toContain('Alimentación');
+    $componente = Livewire::actingAs($this->admin)->test(Servicios::class);
+
+    expect($componente->html())
+        ->toContain('wire:model="categoria_id"')
+        ->toContain("modelo: 'categoria_id'")
+        ->toContain('this.$wire.set(this.modelo, value)')
+        // Opción de reemplazo: ya no está deshabilitada, solo sin seleccionar.
+        ->toContain('<option value="" selected>Selecciona una categoría...</option>')
+        ->toContain('<span class="block min-w-0 truncate">Selecciona una categoría...</span>')
+        // El desplegable toma el identificador de la categoría como valor y no
+        // el índice del bucle, que llegaría al backend como un id inexistente.
+        ->toContain('data-value="'.$categoria->id.'"')
+        ->toContain('>Alimentación</span>')
+        ->toContain('<option value="'.$categoria->id.'" >Alimentación</option>')
+        // Sin selección, la clave inyectada queda en el prefijo del campo.
+        ->toContain('wire:key="categoria_id-"');
+
+    $componente->call('editar', $servicio->id);
+
+    // La clave sigue al valor devuelto por el servidor, de modo que el control
+    // se reconstruye y el botón muestra lo que el servidor devolvió.
+    expect($componente->html())
+        ->toContain('wire:key="categoria_id-'.$categoria->id.'"')
+        ->toContain('wire:key="nombre-Desayuno buffet"')
+        ->toContain('<option value="'.$categoria->id.'" selected>Alimentación</option>')
+        ->toContain("selected: '".$categoria->id."'");
 });
 
 test('la alerta de éxito se pinta con Alpine escuchando el evento de Livewire', function () {
