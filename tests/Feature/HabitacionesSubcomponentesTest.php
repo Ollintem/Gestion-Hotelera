@@ -64,7 +64,9 @@ test('el contenedor renderiza el inventario con el total, los filtros y el alta 
         ->assertSee('1 habitación registrada')
         ->assertSee('Agregar habitación')
         ->assertSee('Buscar por número o tipo...')
-        ->assertSee('Todos los estados')
+        // El recorte por estado lo hacen las tarjetas KPI: el desplegable
+        // "Todos los estados" ya no forma parte de la cabecera.
+        ->assertDontSee('Todos los estados')
         ->assertSee('#101')
         ->assertSee('Estándar')
         ->assertSee('$899')
@@ -406,7 +408,6 @@ test('las tarjetas KPI usan la rejilla y el contrato visual acordado', function 
         ->test(Filtros::class, [
             'totalHabitaciones' => 1,
             'tarjetas' => app(HabitacionesIndex::class)->tarjetasEstado(),
-            'opcionesEstado' => HabitacionesIndex::OPCIONES_ESTADO,
         ])
         ->html();
 
@@ -577,6 +578,41 @@ test('el contenedor cierra el modal y muestra el mensaje tras guardar', function
         ->dispatch('habitacion-guardada', mensaje: 'Habitación creada correctamente.')
         ->assertDispatched('modal-close', name: 'habitacion-form')
         ->assertSet('mensajeExito', 'Habitación creada correctamente.');
+});
+
+test('el mensaje de éxito se retira solo a los tres segundos', function () {
+    $componente = Livewire::actingAs($this->admin)
+        ->test(HabitacionesIndex::class)
+        ->dispatch('habitacion-guardada', mensaje: 'Habitación creada correctamente.');
+
+    // El temporizador vive en la vista y avisa al contenedor: el servidor solo
+    // obedece la señal.
+    expect($componente->html())
+        ->toContain('x-init="setTimeout(() => $dispatch(\'mensaje-exito-oculto\'), 3000)"')
+        ->toContain('wire:key="mensaje-exito-1"');
+
+    $componente
+        ->dispatch('mensaje-exito-oculto')
+        ->assertSet('mensajeExito', null)
+        ->assertDontSee('Habitación creada correctamente.');
+});
+
+test('dos avisos seguidos reinician el temporizador aunque repitan el texto', function () {
+    $tipo = ($this->crearTipo)('Estándar', 899.00, 2);
+    $primera = ($this->crearHabitacion)('101', $tipo);
+    $segunda = ($this->crearHabitacion)('202', $tipo);
+
+    $componente = Livewire::actingAs($this->admin)
+        ->test(HabitacionesIndex::class)
+        ->call('eliminar', $primera->id);
+
+    expect($componente->html())->toContain('wire:key="mensaje-exito-1"');
+
+    $componente->call('eliminar', $segunda->id);
+
+    // Mismo texto, clave distinta: Alpine vuelve a armar el temporizador en vez
+    // de heredar el del aviso anterior.
+    expect($componente->html())->toContain('wire:key="mensaje-exito-2"');
 });
 
 test('el contenedor elimina una habitación del inventario', function () {

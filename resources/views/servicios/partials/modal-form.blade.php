@@ -1,7 +1,9 @@
 {{-- ======================================================
      MODAL: CREAR / EDITAR SERVICIO
 
-     Nombre y categoría se eligen con el desplegable de `x-dropdown`, no con un
+     El nombre es texto libre: recepción escribe el concepto tal y como lo
+     nombra en el mostrador, sin tener que encajarlo en una lista cerrada. La
+     categoría, en cambio, se elige con el desplegable de `x-dropdown`, no con un
      <select> nativo. El componente lleva la clave `modelo`, que es lo que
      empuja el valor a la propiedad de Livewire con `$wire.set` en el mismo clic
      que lo elige: así el guardado no puede adelantarse a la petición del
@@ -32,11 +34,8 @@
     /*
      | El desplegable toma el valor de la clave de cada opción, no de su
      | posición: los índices del bucle serían 0, 1, 2… y el backend recibiría un
-     | id que no existe. El catálogo de nombres es una lista de textos, así que
-     | el propio nombre hace de clave y de etiqueta.
+     | id que no existe.
      */
-    $nombresOpciones = collect($nombresServicio)->mapWithKeys(fn (string $nombre) => [$nombre => $nombre])->all();
-
     $categoriasOpciones = $categoriasModal->mapWithKeys(fn ($categoria) => [$categoria->id => $categoria->nombre])->all();
 @endphp
 
@@ -66,22 +65,19 @@
             <div>
                 <label for="nombre" class="{{ $etiqueta }}">Nombre</label>
 
-                <x-dropdown
-                    id="nombre"
-                    wire:model="nombre"
-                    modelo="nombre"
-                    clave="nombre-{{ $nombre }}"
-                    required
-                    :selected="$nombre"
-                    placeholder="Selecciona un servicio..."
-                    :options="$nombresOpciones"
-                    variant="soft"
-                    class="w-full"
-                >
-                    <x-slot:leadingIcon>
-                        <flux:icon.tag class="size-5" />
-                    </x-slot:leadingIcon>
-                </x-dropdown>
+                <div class="relative">
+                    <input
+                        id="nombre"
+                        type="text"
+                        wire:model="nombre"
+                        placeholder="Ejemplo: Desayuno buffet"
+                        required
+                        maxlength="100"
+                        class="{{ $campo }} peer"
+                    />
+
+                    <flux:icon.tag class="{{ $icono }}" />
+                </div>
 
                 <flux:error name="nombre" class="mt-1.5" />
             </div>

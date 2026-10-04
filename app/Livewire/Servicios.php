@@ -8,7 +8,6 @@ use App\Models\ReservaServicio;
 use App\Models\Servicio;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -59,20 +58,12 @@ class Servicios extends Component
 
     public string $precio = '';
 
-    /**
-     * Nombre con el que ya estaba dado de alta un servicio heredado, fuera del
-     * catálogo cerrado del hotel. Se conserva como opción al editarlo para que
-     * la fila siga siendo editable, y la validación lo acepta en esa situación.
-     */
-    public ?string $nombreFueraDeCatalogo = null;
-
     public function render(): View
     {
         return view('servicios.index', [
             'servicios' => $this->serviciosPaginados(),
             'categorias' => $this->categorias(),
             'categoriasModal' => $this->categoriasModal(),
-            'nombresServicio' => $this->nombresServicio(),
             'kpis' => $this->kpis(),
         ]);
     }
@@ -123,7 +114,6 @@ class Servicios extends Component
         $this->descripcion = $servicio->descripcion ?? '';
         $this->categoria_id = $servicio->categoria_id;
         $this->precio = number_format((float) $servicio->precio, 2, '.', '');
-        $this->nombreFueraDeCatalogo = $servicio->estaEnCatalogo() ? null : $servicio->nombre;
 
         $this->mostrarModal = true;
     }
@@ -136,18 +126,13 @@ class Servicios extends Component
     }
 
     /**
-     * Guarda el alta o la edición. El nombre sale del catálogo cerrado del
-     * hotel salvo que se esté editando un servicio heredado, que se conserva.
+     * Guarda el alta o la edición. El nombre es texto libre: lo que recepción
+     * escribe en el mostrador es lo que queda registrado.
      */
     public function guardar(): void
     {
         $this->validate([
-            'nombre' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::in($this->nombresAceptados()),
-            ],
+            'nombre' => ['required', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string', 'max:500'],
             'categoria_id' => ['required', 'integer', 'exists:categorias,id'],
             'precio' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
@@ -271,29 +256,6 @@ class Servicios extends Component
     }
 
     /**
-     * Nombres que el formulario ofrece en el desplegable. El servicio heredado
-     * que se está editando se añade para que su valor siga siendo elegible.
-     *
-     * @return list<string>
-     */
-    private function nombresServicio(): array
-    {
-        return $this->nombresAceptados();
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function nombresAceptados(): array
-    {
-        if ($this->nombreFueraDeCatalogo === null) {
-            return Servicio::CATALOGO;
-        }
-
-        return array_values(array_unique([...Servicio::CATALOGO, $this->nombreFueraDeCatalogo]));
-    }
-
-    /**
      * Cifras de la cabecera. Describen el hotel completo y no la selección del
      * filtro: acotar el catálogo no debe cambiar lo que el hotel tiene dado de
      * alta.
@@ -321,6 +283,5 @@ class Servicios extends Component
         $this->descripcion = '';
         $this->categoria_id = null;
         $this->precio = '';
-        $this->nombreFueraDeCatalogo = null;
     }
 }

@@ -298,7 +298,7 @@ test('la tabla pagina el catálogo en bloques de diez', function () {
     expect($componente->viewData('servicios')->count())->toBe(3);
 });
 
-test('el modal ofrece el catálogo cerrado en un desplegable de Alpine etiquetado NOMBRE', function () {
+test('el modal pide el nombre como texto libre etiquetado NOMBRE', function () {
     $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
 
     expect($html)
@@ -307,54 +307,53 @@ test('el modal ofrece el catálogo cerrado en un desplegable de Alpine etiquetad
         ->toContain('>Nombre</label>')
         ->not->toContain('>Número</label>')
         ->not->toContain('NÚMERO')
-        // El campo ya no es un input de texto libre.
-        ->not->toContain('placeholder="Ejemplo: Desayuno buffet"')
-        // El <select> nativo sobrevive como espejo oculto del estado: es el que
-        // conserva el enlace con `wire:model` y el `name` del formulario.
+        // Texto libre: un input de la misma familia visual que el precio.
+        ->toContain('type="text"')
         ->toContain('wire:model="nombre"')
-        ->toContain('class="sr-only"')
-        ->toContain('tabindex="-1"')
-        ->toContain('aria-hidden="true"')
-        // `required` no puede quedarse en un control que el navegador no puede
-        // enfocar: el componente lo traduce a `aria-required` y la obligatoriedad
-        // la aplica el servidor.
-        ->toContain('aria-required="true"')
-        // La clave inyectada ata el bloque a un `wire:key` para que Morphdom
-        // reconstruya el control cuando el servidor cambia el valor.
-        ->toContain('wire:key="nombre-"')
-        ->toContain("modelo: 'nombre'")
-        // El valor viaja a Livewire en el mismo clic que elige la opción, así
-        // que `wire:submit` no puede adelantarse y guardar la propiedad vacía.
-        ->toContain('this.$wire.set(this.modelo, value)')
-        ->toContain('@click="select($event.currentTarget.dataset.value)"')
-        // Opción de reemplazo: ya no está deshabilitada, solo sin seleccionar.
-        ->toContain('<option value="" selected>Selecciona un servicio...</option>')
-        ->toContain("placeholder: 'Selecciona un servicio...'")
-        ->toContain('role="listbox"')
-        ->toContain('aria-haspopup="listbox"')
-        // El catálogo cerrado, con el nombre haciendo de clave y de etiqueta.
-        ->toContain('data-value="Servicio a la habitación"')
-        ->toContain('>Servicio a la habitación</span>')
-        ->toContain('data-value="Desayuno buffet"')
-        ->toContain('>Desayuno buffet</span>')
-        ->toContain('data-value="Lavandería"')
-        ->toContain('>Lavandería</span>')
-        ->toContain('data-value="Spa y masajes"')
-        ->toContain('>Spa y masajes</span>')
-        ->toContain('data-value="Traslado al aeropuerto"')
-        ->toContain('>Traslado al aeropuerto</span>');
+        ->toContain('placeholder="Ejemplo: Desayuno buffet"')
+        ->toContain('maxlength="100"')
+        ->toContain('required')
+        // El desplegable del catálogo cerrado desaparece por completo.
+        ->not->toContain('Selecciona un servicio...')
+        ->not->toContain('wire:key="nombre-')
+        ->not->toContain('data-value="Desayuno buffet"')
+        ->not->toContain('data-value="Traslado al aeropuerto"');
 });
 
-test('el modal rechaza un nombre fuera del catálogo', function () {
+test('el modal acepta un nombre libre que nunca estuvo en el catálogo cerrado', function () {
+    $categoria = categoriaDe('Alimentación');
+
     Livewire::actingAs($this->admin)
         ->test(Servicios::class)
         ->call('crear')
-        ->set('nombre', 'Desayunno bufett')
-        ->set('precio', '320.00')
+        ->set('nombre', 'Barra de café de la terraza')
+        ->set('categoria_id', $categoria->id)
+        ->set('precio', '180.00')
+        ->call('guardar')
+        ->assertHasNoErrors()
+        ->assertDispatched('notificacion', mensaje: 'Servicio creado correctamente.');
+
+    expect(Servicio::where('nombre', 'Barra de café de la terraza')->exists())->toBeTrue();
+});
+
+test('el modal sigue rechazando un nombre vacío o demasiado largo', function () {
+    $categoria = categoriaDe('Alimentación');
+
+    $componente = Livewire::actingAs($this->admin)
+        ->test(Servicios::class)
+        ->call('crear')
+        ->set('categoria_id', $categoria->id)
+        ->set('precio', '320.00');
+
+    $componente->set('nombre', '')
         ->call('guardar')
         ->assertHasErrors(['nombre']);
 
-    expect(Servicio::where('nombre', 'Desayunno bufett')->exists())->toBeFalse();
+    $componente->set('nombre', str_repeat('a', 101))
+        ->call('guardar')
+        ->assertHasErrors(['nombre']);
+
+    expect(Servicio::query()->count())->toBe(0);
 });
 
 test('el modal acepta dos servicios con el mismo nombre', function () {
@@ -390,14 +389,13 @@ test('editar un servicio conservando su nombre no dispara el error de duplicado'
     expect((float) $servicio->fresh()->precio)->toBe(195.00);
 });
 
-test('editar un servicio con nombre fuera del catálogo lo conserva como opción', function () {
+test('editar un servicio heredado conserva su nombre fuera del catálogo cerrado', function () {
     $servicio = Servicio::factory()->create(['nombre' => 'Traslado privado', 'precio' => 450.00]);
 
     Livewire::actingAs($this->admin)
         ->test(Servicios::class)
         ->call('editar', $servicio->id)
         ->assertSet('nombre', 'Traslado privado')
-        ->assertSet('nombreFueraDeCatalogo', 'Traslado privado')
         ->set('precio', '480.00')
         ->call('guardar')
         ->assertHasNoErrors()
@@ -407,16 +405,15 @@ test('editar un servicio con nombre fuera del catálogo lo conserva como opción
         ->and((float) $servicio->fresh()->precio)->toBe(480.00);
 });
 
-test('el nombre fuera de catálogo se descarta al abrir el modal de creación', function () {
+test('abrir el modal de creación deja el nombre en blanco', function () {
     $servicio = Servicio::factory()->create(['nombre' => 'Traslado privado']);
 
     $componente = Livewire::actingAs($this->admin)->test(Servicios::class)
         ->call('editar', $servicio->id)
-        ->assertSet('nombreFueraDeCatalogo', 'Traslado privado')
+        ->assertSet('nombre', 'Traslado privado')
         ->call('crear');
 
     expect($componente->get('nombre'))->toBe('')
-        ->and($componente->get('nombreFueraDeCatalogo'))->toBeNull()
         ->and($componente->html())->not->toContain('value="Traslado privado"');
 });
 
@@ -592,7 +589,6 @@ test('el modal ofrece la categoría como desplegable de Alpine con la opción de
     // se reconstruye y el botón muestra lo que el servidor devolvió.
     expect($componente->html())
         ->toContain('wire:key="categoria_id-'.$categoria->id.'"')
-        ->toContain('wire:key="nombre-Desayuno buffet"')
         ->toContain('<option value="'.$categoria->id.'" selected>Alimentación</option>')
         ->toContain("selected: '".$categoria->id."'");
 });
