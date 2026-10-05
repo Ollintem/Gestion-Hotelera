@@ -278,6 +278,34 @@ ui-menu[popover]:popover-open {
     @apply text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500;
 }
 
+/* ==========================================================
+   NovaStay: plegado del menú lateral en escritorio
+   El botón de la cabecera del menú pliega la columna hasta el carril
+   de iconos (`data-flux-sidebar-collapsed-desktop` → `w-14`), y la
+   retícula de Flux usa `min-content` para esa columna, así que el
+   contenido principal crece a la vez que el menú se recoge.
+
+   La transición va aquí y no como utilidad Tailwind a propósito: Flux
+   añade `transition-transform` en tiempo de ejecución para animar el
+   menú en móvil, y `transition-all` la pisaría en todas las pantallas.
+   Acotarla a `min-width: 1024px` deja el comportamiento móvil intacto.
+   ========================================================== */
+@media (min-width: 1024px) {
+    [data-flux-sidebar] {
+        transition:
+            width 300ms ease-in-out,
+            padding 300ms ease-in-out,
+            opacity 300ms ease-in-out;
+    }
+
+    /* En el carril no caben los rótulos de sección: se retiran y
+       quedan solo los iconos. Flux ya oculta el texto de cada
+       elemento del menú, pero no los encabezados de los grupos. */
+    :where([data-flux-sidebar-collapsed-desktop]) [data-flux-navlist] > div > div:first-child {
+        display: none;
+    }
+}
+
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */

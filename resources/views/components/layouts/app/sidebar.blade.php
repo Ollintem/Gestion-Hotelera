@@ -6,6 +6,19 @@
         @include('partials.head')
     </head>
 
+    {{--
+        ==========================================================
+         ESTADO DEL MENÚ LATERAL
+         ==========================================================
+
+         El plegado lo lleva Flux, no un estado propio: `collapsible` en
+         `<flux:sidebar>` publica `data-flux-sidebar-collapsed-desktop` en
+         escritorio —el atributo que recoge la columna y la deja en un carril
+         de iconos— y `<flux:sidebar.collapse>`, el botón de la cabecera del
+         menú, lo alterna. Flux guarda la preferencia en localStorage, de modo
+         que el menú sigue plegado al recargar o al saltar entre módulos con
+         `wire:navigate` sin que haya que replicar nada de eso aquí.
+    --}}
     <body class="min-h-screen bg-slate-100 text-slate-700 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100">
 
         {{-- ==========================================================
@@ -18,11 +31,18 @@
         {{-- ==========================================================
              MENÚ LATERAL
              Fondo claro (blanco) con acentos ámbar en modo Light.
+
+             En escritorio el botón de la cabecera pliega la columna hasta un
+             carril de iconos y el contenido principal crece con ella; en
+             móvil sigue mandando Flux, que abre el menú como una capa
+             superpuesta.
              ========================================================== --}}
 
         <flux:sidebar
+            id="menu-lateral"
             sticky
             stashable
+            collapsible
             class="border-r border-slate-200 bg-white shadow-sm shadow-slate-200/50 dark:border-slate-700/70 dark:bg-slate-900 dark:shadow-none"
         >
 
@@ -33,31 +53,49 @@
             />
 
             {{-- ======================================================
-                 LOGOTIPO
-                 ====================================================== --}}
+                 LOGOTIPO Y BOTÓN DE PLEGADO
+                 ======================================================
 
-            <a
-                href="{{ route('dashboard') }}"
-                class="mb-7 flex items-center gap-3 rounded-lg px-2 transition hover:bg-slate-100"
-                wire:navigate
-            >
+                 El botón va en la cabecera del propio menú, a la derecha de
+                 «NovaStay», y es lo único que pliega y despliega la columna.
+                 Al plegarse la columna queda en un carril estrecho: la fila
+                 pasa a columna para que el logotipo y el botón no compitan
+                 por los 56 px de ancho, y el rótulo se retira. --}}
 
-                <div
-                    class="flex aspect-square size-9 shrink-0 items-center justify-center rounded-lg bg-amber-600 shadow-md shadow-amber-600/30"
+            <div class="mb-7 flex items-center in-data-flux-sidebar-collapsed-desktop:flex-col in-data-flux-sidebar-collapsed-desktop:gap-2">
+
+                <a
+                    href="{{ route('dashboard') }}"
+                    class="flex min-w-0 items-center gap-3 rounded-lg px-2 transition hover:bg-slate-100 in-data-flux-sidebar-collapsed-desktop:px-0"
+                    wire:navigate
                 >
-                    <x-app-logo-icon class="size-5 fill-current text-white" />
-                </div>
 
-                <div class="flex flex-col leading-tight">
-                    <span class="font-serif text-sm font-bold tracking-wide text-slate-900 dark:text-white">
-                        NovaStay
-                    </span>
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                        Hotel Management
-                    </span>
-                </div>
+                    <div
+                        class="flex aspect-square size-9 shrink-0 items-center justify-center rounded-lg bg-amber-600 shadow-md shadow-amber-600/30"
+                    >
+                        <x-app-logo-icon class="size-5 fill-current text-white" />
+                    </div>
 
-            </a>
+                    <div class="in-data-flux-sidebar-collapsed-desktop:hidden flex flex-col leading-tight">
+                        <span class="font-serif text-sm font-bold tracking-wide text-slate-900 dark:text-white">
+                            NovaStay
+                        </span>
+                        <span class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                            Hotel Management
+                        </span>
+                    </div>
+
+                </a>
+
+                {{-- Flux esconde este botón en el carril para que solo asome al
+                     pasar el ratón; aquí interesa que siga a la vista, que es
+                     lo que devuelve el ancho completo al menú. --}}
+                <flux:sidebar.collapse
+                    class="ms-auto in-data-flux-sidebar-collapsed-desktop:!static in-data-flux-sidebar-collapsed-desktop:ms-0 in-data-flux-sidebar-collapsed-desktop:!opacity-100"
+                    tooltip="Mostrar u ocultar el menú lateral"
+                />
+
+            </div>
 
             {{-- ======================================================
                  MENÚ PRINCIPAL
@@ -316,107 +354,21 @@
 
             <flux:spacer />
 
-            {{-- ======================================================
-                 CAMBIO DE TEMA (claro / oscuro)
-                 ====================================================== --}}
-
-            <div class="mb-2 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 transition-colors duration-300 dark:border-slate-700/60 dark:bg-slate-800/60">
-                <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    <flux:icon.moon class="size-4 text-slate-500 dark:hidden" />
-                    <flux:icon.sun class="hidden size-4 text-amber-400 dark:block" />
-                    Tema
-                </span>
-                <x-tema-toggle />
-            </div>
-
-            {{-- ======================================================
-                 PERFIL DEL USUARIO - ESCRITORIO
-                 ====================================================== --}}
-
-            <flux:dropdown
-                position="bottom"
-                align="start"
-            >
-
-                <flux:profile
-                    :name="auth()->user()->name"
-                    :initials="auth()->user()->initials()"
-                    icon-trailing="chevrons-up-down"
-                    class="hover:!bg-slate-100 [&>span]:!text-slate-700 [&>span]:group-hover:!text-slate-900 dark:hover:!bg-slate-800 [&>span]:dark:!text-slate-300"
-                />
-
-                <flux:menu class="w-[240px]">
-
-                    {{-- Información del usuario --}}
-                    <flux:menu.radio.group>
-
-                        <div class="p-2 text-sm">
-
-                            <div class="flex items-center gap-3">
-
-                                {{-- Iniciales --}}
-                                <span
-                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-600/15 text-sm font-semibold text-amber-600"
-                                >
-                                    {{ auth()->user()->initials() }}
-                                </span>
-
-                                {{-- Datos --}}
-                                <div class="min-w-0 flex-1">
-
-                                    <span class="block truncate font-semibold text-slate-800 dark:text-white">
-                                        {{ auth()->user()->name }}
-                                    </span>
-
-                                    <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
-                                        {{ auth()->user()->email }}
-                                    </span>
-
-                                    <span class="mt-1 block truncate text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                                        {{ auth()->user()->getRoleNames()->implode(', ') }}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </flux:menu.radio.group>
-
-                    <flux:menu.separator />
-
-                    {{-- Cerrar sesión --}}
-                    <form
-                        method="POST"
-                        action="{{ route('logout') }}"
-                        class="w-full"
-                    >
-
-                        @csrf
-
-                        <flux:menu.item
-                            as="button"
-                            type="submit"
-                            icon="arrow-right-start-on-rectangle"
-                            class="w-full"
-                        >
-                            Cerrar sesión
-                        </flux:menu.item>
-
-                    </form>
-
-                </flux:menu>
-
-            </flux:dropdown>
-
         </flux:sidebar>
 
         {{-- ==========================================================
-             MENÚ DEL USUARIO - MÓVIL
+             BARRA SUPERIOR
+             En móvil abre y cierra el menú como capa, que es lo que resuelve
+             Flux. En escritorio ya no hace falta nada aquí: el botón que
+             pliega la columna vive en la cabecera del propio menú lateral,
+             y la marca tampoco se repite porque la del carril la sustituye.
              ========================================================== --}}
 
-        <flux:header class="lg:hidden border-b border-slate-200/60 bg-white/80 backdrop-blur-md dark:border-slate-700/60 dark:bg-slate-900/80">
+        <flux:header class="border-b border-slate-200/60 bg-white/80 backdrop-blur-md dark:border-slate-700/60 dark:bg-slate-900/80">
+
+            {{-- ==================================================
+                 HAMBURGUESA - MÓVIL
+                 ================================================== --}}
 
             <flux:sidebar.toggle
                 class="lg:hidden !text-slate-500 hover:!text-slate-900 dark:!text-slate-400 dark:hover:!text-slate-100"

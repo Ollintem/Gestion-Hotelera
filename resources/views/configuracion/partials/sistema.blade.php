@@ -24,12 +24,20 @@
                 <dt class="text-zinc-500">Temporada vigente</dt>
                 <dd class="font-medium">
                     @if ($temporadaVigente)
-                        {{ $temporadaVigente->nombre }} (x{{ number_format($temporadaVigente->multiplicador_precio, 2) }})
+                        {{ $temporadaVigente->nombre }} ({{ $temporadaVigente->multiplicadorEnTexto() }})
                     @else
                         Sin temporada vigente
                     @endif
                 </dd>
             </div>
+            @if ($temporadaVigente)
+                <div class="flex items-center justify-between gap-4">
+                    <dt class="text-zinc-500">Precio vigente</dt>
+                    <dd class="font-medium text-emerald-600 tabular-nums">
+                        {{ $temporadaVigente->precioEfectivoEnPesos() }}
+                    </dd>
+                </div>
+            @endif
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-zinc-500">Sesión iniciada como</dt>
                 <dd class="font-medium">{{ auth()->user()?->name }}</dd>
