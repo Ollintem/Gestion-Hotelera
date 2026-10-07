@@ -2,7 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Models\Limpieza as TareaLimpieza;
 use App\Models\Reserva;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -41,12 +43,24 @@ class CheckInOut extends Component
 
     public function checkOut(int $id): void
     {
-        $reserva = Reserva::with('habitaciones')->findOrFail($id);
-        $reserva->update(['estado' => 'Finalizada']);
+        DB::transaction(function () use ($id) {
+            $reserva = Reserva::with('habitaciones')->findOrFail($id);
 
-        foreach ($reserva->habitaciones as $habitacion) {
-            $habitacion->update(['estado' => 'Limpieza']);
-        }
+            foreach ($reserva->habitaciones as $habitacion) {
+                $habitacion->update(['estado' => 'Limpieza']);
+
+                TareaLimpieza::firstOrCreate(
+                    ['habitacion_id' => $habitacion->id],
+                    [
+                        'user_id' => auth()->id(),
+                        'estado' => 'Pendiente',
+                        'notas' => 'Check-out de la reserva #'.$reserva->id,
+                    ]
+                );
+            }
+
+            $reserva->update(['estado' => Reserva::ESTADO_FINALIZADA]);
+        });
 
         $this->mensajeExito = 'Check-out registrado correctamente. Las habitaciones pasaron a limpieza.';
     }
