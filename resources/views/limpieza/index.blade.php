@@ -188,24 +188,30 @@
                     </span>
 
                     <div class="flex shrink-0 items-center gap-1">
-                        <button
-                            type="button"
-                            wire:click="editar({{ $tarea->id }})"
-                            title="Editar tarea"
-                            aria-label="Editar tarea"
-                            class="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 active:scale-90 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                        >
-                            <flux:icon.pencil-square class="size-4" />
-                        </button>
-                        <button
-                            type="button"
-                            x-on:click="$dispatch('eliminar-tarea', { id: {{ $tarea->id }}, numero: '{{ $numero }}' })"
-                            title="Eliminar tarea"
-                            aria-label="Eliminar tarea"
-                            class="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 active:scale-90 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                        >
-                            <flux:icon.trash class="size-4" />
-                        </button>
+                @php
+                    $user = auth()->user();
+                    $esLimpieza = $user->hasRole('limpieza') || ($user->rol === 'limpieza' || $user->rol === 'Limpieza');
+                @endphp
+                @if(!$esLimpieza)
+                <button
+                    type="button"
+                    wire:click="editar({{ $tarea->id }})"
+                    title="Editar tarea"
+                    aria-label="Editar tarea"
+                    class="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 active:scale-90 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                >
+                    <flux:icon.pencil-square class="size-4" />
+                </button>
+                <button
+                    type="button"
+                    x-on:click="$dispatch('eliminar-tarea', { id: {{ $tarea->id }}, numero: '{{ $numero }}' })"
+                    title="Eliminar tarea"
+                    aria-label="Eliminar tarea"
+                    class="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 active:scale-90 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                >
+                    <flux:icon.trash class="size-4" />
+                </button>
+                @endif
                     </div>
                 </div>
 
@@ -213,9 +219,15 @@
                      Hoy abre el formulario de la tarea; sustituye el `wire:click`
                      por `iniciarLimpieza({{ $tarea->id }})` / `marcarComoLista(...)`
                      en cuanto esos métodos existan en el componente. --}}
+                @php
+                    $user = auth()->user();
+                    $esLimpieza = $user->hasRole('limpieza') || ($user->rol === 'limpieza' || $user->rol === 'Limpieza');
+                @endphp
                 <button
                     type="button"
+                    @if(!$esLimpieza || $estado === 'Pendiente' || $estado === 'En Proceso')
                     wire:click="editar({{ $tarea->id }})"
+                    @endif
                     @class([
                         'flex w-full items-center justify-center gap-2 px-5 py-3.5 text-sm font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-inset',
                         $clasesAccion,
@@ -242,10 +254,12 @@
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     Crea una tarea para empezar a organizar el housekeeping.
                 </p>
+                @if(auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('gerente') || auth()->user()->hasRole('recepcionista') || auth()->user()->rol === 'admin' || auth()->user()->rol === 'Administrador')
                 <flux:button type="button" variant="primary" wire:click="crear" class="mt-5">
                     <flux:icon.plus class="size-4" />
                     Nueva tarea
                 </flux:button>
+                @endif
             </div>
         @endforelse
     </div>
