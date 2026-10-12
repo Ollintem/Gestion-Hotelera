@@ -17,6 +17,7 @@
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
+            @if(!(auth()->user()->hasRole('limpieza') || auth()->user()->rol === 'limpieza' || auth()->user()->rol === 'Limpieza'))
             <flux:field>
                 <flux:label>Habitación</flux:label>
                 <x-dropdown
@@ -37,7 +38,9 @@
                 </x-dropdown>
                 <flux:error name="habitacion_id" />
             </flux:field>
+            @endif
 
+            @if(!(auth()->user()->hasRole('limpieza') || auth()->user()->rol === 'limpieza' || auth()->user()->rol === 'Limpieza'))
             <flux:field>
                 <flux:label>Responsable</flux:label>
                 <x-dropdown
@@ -58,6 +61,7 @@
                 </x-dropdown>
                 <flux:error name="user_id" />
             </flux:field>
+            @endif
 
             <flux:field class="sm:col-span-2">
                 <flux:label>Estado</flux:label>
@@ -78,11 +82,13 @@
                 <flux:error name="estado" />
             </flux:field>
 
+            @if(!(auth()->user()->hasRole('limpieza') || auth()->user()->rol === 'limpieza' || auth()->user()->rol === 'Limpieza'))
             <flux:field class="sm:col-span-2">
                 <flux:label>Notas</flux:label>
                 <textarea wire:model="notas" rows="3" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"></textarea>
                 <flux:error name="notas" />
             </flux:field>
+            @endif
         </div>
 
         <div class="mt-6 flex items-center justify-end gap-3">

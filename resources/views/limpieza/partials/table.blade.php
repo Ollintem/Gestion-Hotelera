@@ -23,8 +23,10 @@
                     <flux:table.cell>{{ $tarea->notas ?? '—' }}</flux:table.cell>
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-2">
+                            @if(!(auth()->user()->hasRole('limpieza') || auth()->user()->rol === 'limpieza' || auth()->user()->rol === 'Limpieza'))
                             <flux:button type="button" size="sm" variant="outline" color="blue" icon="pencil-square" tooltip="Editar tarea" aria-label="Editar tarea" wire:click="editar({{ $tarea->id }})" class="transition-all duration-200 hover:scale-105 active:scale-95" />
                             <flux:button type="button" size="sm" variant="outline" color="red" icon="trash" tooltip="Eliminar tarea" aria-label="Eliminar tarea" wire:click="eliminar({{ $tarea->id }})" wire:confirm="¿Eliminar esta tarea?" class="transition-all duration-200 hover:scale-105 active:scale-95" />
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
