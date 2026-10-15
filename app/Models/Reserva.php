@@ -39,8 +39,14 @@ class Reserva extends Model
     protected $fillable = [
         'cliente_id',
         'user_id',
+        'user_checkin_id',
+        'user_checkout_id',
         'check_in',
         'check_out',
+        'fecha_hora_checkin',
+        'fecha_hora_checkout',
+        'observaciones_checkin',
+        'observaciones_checkout',
         'estado',
         'monto_total',
     ];
@@ -129,10 +135,13 @@ class Reserva extends Model
      * Cierra la estadía: libera sus habitaciones a limpieza, genera las tareas
      * pendientes y marca la reservación como finalizada. Lo comparten el
      * check-out manual de recepción y el cierre automático al liquidar el saldo.
+     *
+     * El motivo opcional queda registrado en `observaciones_checkout`; cuando no
+     * se envía, la columna se guarda vacía.
      */
-    public function realizarCheckOut(): void
+    public function realizarCheckOut(string $motivo = ''): void
     {
-        DB::transaction(function (): void {
+        DB::transaction(function () use ($motivo): void {
             $this->loadMissing('habitaciones');
 
             foreach ($this->habitaciones as $habitacion) {
@@ -148,7 +157,40 @@ class Reserva extends Model
                 );
             }
 
-            $this->update(['estado' => self::ESTADO_FINALIZADA]);
+            $this->update([
+                'estado' => self::ESTADO_FINALIZADA,
+                'fecha_hora_checkout' => now(),
+                'user_checkout_id' => auth()->id(),
+                'observaciones_checkout' => $motivo !== '' ? $motivo : null,
+            ]);
+        });
+    }
+
+    /**
+     * Registra la llegada del huésped: fija la fecha y hora reales, deja
+     * constancia de quién lo hizo, pasa la reservación a «Confirmada» y marca
+     * sus habitaciones como ocupadas. Solo se admite sobre reservas aún
+     * pendientes, de modo que un segundo intento queda sin efecto.
+     */
+    public function realizarCheckIn(string $motivo = ''): void
+    {
+        DB::transaction(function () use ($motivo): void {
+            if ($this->estado !== 'Pendiente') {
+                return;
+            }
+
+            $this->update([
+                'estado' => 'Confirmada',
+                'fecha_hora_checkin' => now(),
+                'user_checkin_id' => auth()->id(),
+                'observaciones_checkin' => $motivo !== '' ? $motivo : null,
+            ]);
+
+            $this->loadMissing('habitaciones');
+
+            foreach ($this->habitaciones as $habitacion) {
+                $habitacion->update(['estado' => 'Ocupada']);
+            }
         });
     }
 
@@ -160,8 +202,30 @@ class Reserva extends Model
         return [
             'check_in' => 'date',
             'check_out' => 'date',
+            'fecha_hora_checkin' => 'datetime',
+            'fecha_hora_checkout' => 'datetime',
             'monto_total' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Empleado que registró la llegada.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function usuarioCheckIn(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_checkin_id');
+    }
+
+    /**
+     * Empleado que registró la salida.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function usuarioCheckOut(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_checkout_id');
     }
 
     /**
