@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Reserva extends Model
 {
@@ -88,11 +89,14 @@ class Reserva extends Model
     }
 
     /**
-     * Importe ya abonado por el huésped.
+     * Importe ya abonado por el huésped. Solo cuentan los pagos completados:
+     * los anulados y los que siguen pendientes no reducen el saldo.
      */
     public function totalPagado(): float
     {
-        return round((float) $this->pagos()->sum('monto'), 2);
+        return round((float) $this->pagos()
+            ->where('estado', Pago::ESTADO_COMPLETADO)
+            ->sum('monto'), 2);
     }
 
     /**
@@ -110,6 +114,42 @@ class Reserva extends Model
     public function saldoPendiente(): float
     {
         return round(max(0.0, $this->totalConsumos() - $this->totalPagado()), 2);
+    }
+
+    /**
+     * La estancia está liquidada: no hay saldo por cobrar. Se exige un consumo
+     * mayor a cero para no declarar pagada una reservación sin cargos.
+     */
+    public function estaPagada(): bool
+    {
+        return $this->totalConsumos() > 0 && $this->saldoPendiente() <= 0.0;
+    }
+
+    /**
+     * Cierra la estadía: libera sus habitaciones a limpieza, genera las tareas
+     * pendientes y marca la reservación como finalizada. Lo comparten el
+     * check-out manual de recepción y el cierre automático al liquidar el saldo.
+     */
+    public function realizarCheckOut(): void
+    {
+        DB::transaction(function (): void {
+            $this->loadMissing('habitaciones');
+
+            foreach ($this->habitaciones as $habitacion) {
+                $habitacion->update(['estado' => 'Limpieza']);
+
+                Limpieza::firstOrCreate(
+                    ['habitacion_id' => $habitacion->id],
+                    [
+                        'user_id' => auth()->id(),
+                        'estado' => 'Pendiente',
+                        'notas' => 'Check-out de la reserva #'.$this->id,
+                    ]
+                );
+            }
+
+            $this->update(['estado' => self::ESTADO_FINALIZADA]);
+        });
     }
 
     /**

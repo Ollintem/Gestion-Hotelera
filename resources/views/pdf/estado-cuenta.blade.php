@@ -191,6 +191,32 @@
         </tbody>
     </table>
 
+    <div class="titulo-azul">Abonos realizados</div>
+    <table class="detalle">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>M&eacute;todo</th>
+                <th>Referencia</th>
+                <th class="num">Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($pagos as $pago)
+                <tr>
+                    <td>{{ $pago->fecha_pago?->format('d/m/Y H:i') ?? '—' }}</td>
+                    <td>{{ $pago->metodo_pago }}</td>
+                    <td>{{ $pago->referencia ?: '—' }}</td>
+                    <td class="num">${{ number_format((float) $pago->monto, 2) }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="4">A&uacute;n no se registran abonos para esta reservaci&oacute;n.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
     <table class="totales">
         <tr>
             <td><strong>Tarifa de la habitaci&oacute;n</strong></td>

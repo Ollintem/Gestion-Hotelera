@@ -95,6 +95,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:pagos.ver')
         ->name('pagos');
 
+    Route::get('/pagos/{reserva}/estado-cuenta', [EstadoCuentaController::class, 'descargarGestion'])
+        ->middleware('permission:pagos.ver')
+        ->name('pagos.estado-cuenta');
+
     Route::get('/servicios', Servicios::class)
         ->middleware('permission:servicios.ver')
         ->name('servicios');
