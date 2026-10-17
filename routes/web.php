@@ -15,7 +15,7 @@ use App\Livewire\Habitaciones\Index as HabitacionesIndex;
 use App\Livewire\Limpieza;
 use App\Livewire\Pagos;
 use App\Livewire\Reportes;
-use App\Livewire\Reservaciones;
+use App\Livewire\Reservaciones\Index as ReservacionesIndex;
 use App\Livewire\Servicios;
 use App\Livewire\Temporadas;
 use Illuminate\Support\Facades\Route;
@@ -71,7 +71,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['cliente.redirect', 'role:super-admin|gerente'])
         ->name('dashboard');
 
-    Route::get('/reservaciones', Reservaciones::class)
+    Route::get('/reservaciones', ReservacionesIndex::class)
         ->middleware('permission:reservaciones.ver')
         ->name('reservaciones');
 
