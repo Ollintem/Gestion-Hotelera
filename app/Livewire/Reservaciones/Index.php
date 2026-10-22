@@ -117,7 +117,7 @@ class Index extends Component
     public function guardarClienteYSeleccionar(): void
     {
         $datos = $this->validate([
-            'nuevoClienteNombre' => ['required', 'string', 'max:200'],
+            'nuevoClienteNombre' => ['required', 'string', 'max:100'],
             'nuevoClienteEmail' => ['nullable', 'email', 'max:255'],
             'nuevoClienteTelefono' => ['nullable', 'string', 'max:20'],
         ], [
@@ -125,6 +125,10 @@ class Index extends Component
             'nuevoClienteEmail.email' => 'El correo no tiene un formato válido.',
             'nuevoClienteEmail.max' => 'El correo no puede superar los 255 caracteres.',
             'nuevoClienteTelefono.max' => 'El teléfono no puede superar los 20 caracteres.',
+        ], [
+            'nuevoClienteNombre' => 'nombre',
+            'nuevoClienteEmail' => 'correo',
+            'nuevoClienteTelefono' => 'teléfono',
         ]);
 
         $partes = preg_split('/\s+/', trim($datos['nuevoClienteNombre']), 2) ?: [];

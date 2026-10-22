@@ -101,11 +101,11 @@ test('pagina las reservaciones de diez en diez', function () {
 
     $componente = Livewire::actingAs($this->admin)->test(Index::class);
 
-    expect(substr_count($componente->html(), 'confirmarCancelacion('))->toBe(10);
+    expect(substr_count($componente->html(), 'x-on:click="confirmarCancelacion('))->toBe(10);
 
     $componente->call('gotoPage', 2);
 
-    expect(substr_count($componente->html(), 'confirmarCancelacion('))->toBe(2);
+    expect(substr_count($componente->html(), 'x-on:click="confirmarCancelacion('))->toBe(2);
 });
 
 test('mantiene constante el número de consultas al crecer el listado (anti N+1)', function () {
