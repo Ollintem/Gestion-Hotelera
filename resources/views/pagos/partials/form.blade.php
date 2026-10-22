@@ -14,6 +14,8 @@
                 <flux:label>Reservación</flux:label>
                 <x-dropdown
                     wire:model="reserva_id"
+                    modelo="reserva_id"
+                    clave="pago-reserva-{{ $reserva_id }}"
                     required
                     :selected="$reserva_id"
                     placeholder="Selecciona…"
