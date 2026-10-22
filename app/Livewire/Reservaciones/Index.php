@@ -61,6 +61,12 @@ class Index extends Component
 
     public ?string $mensajeExito = null;
 
+    public string $nuevoClienteNombre = '';
+
+    public string $nuevoClienteEmail = '';
+
+    public string $nuevoClienteTelefono = '';
+
     public function render(): View
     {
         $reservas = Reserva::with(['cliente', 'habitaciones.tipoHabitacion', 'pagos'])
@@ -79,7 +85,16 @@ class Index extends Component
     #[On('reserva.crear')]
     public function abrirModalCrear(): void
     {
-        $this->reset('cliente_id', 'habitacion_id', 'check_in', 'check_out');
+        $this->reset(
+            'cliente_id',
+            'habitacion_id',
+            'check_in',
+            'check_out',
+            'nuevoClienteNombre',
+            'nuevoClienteEmail',
+            'nuevoClienteTelefono',
+        );
+
         $this->num_huespedes = 1;
 
         $this->resetValidation();
@@ -93,6 +108,45 @@ class Index extends Component
     {
         $this->showModalCrear = false;
         $this->resetValidation();
+    }
+
+    /**
+     * Da de alta un cliente desde el modal de reservación y lo deja
+     * seleccionado para continuar con el flujo.
+     */
+    public function guardarClienteYSeleccionar(): void
+    {
+        $datos = $this->validate([
+            'nuevoClienteNombre' => ['required', 'string', 'max:100'],
+            'nuevoClienteEmail' => ['nullable', 'email', 'max:255'],
+            'nuevoClienteTelefono' => ['nullable', 'string', 'max:20'],
+        ], [
+            'nuevoClienteNombre.required' => 'Escribe el nombre del cliente.',
+            'nuevoClienteEmail.email' => 'El correo no tiene un formato válido.',
+            'nuevoClienteEmail.max' => 'El correo no puede superar los 255 caracteres.',
+            'nuevoClienteTelefono.max' => 'El teléfono no puede superar los 20 caracteres.',
+        ], [
+            'nuevoClienteNombre' => 'nombre',
+            'nuevoClienteEmail' => 'correo',
+            'nuevoClienteTelefono' => 'teléfono',
+        ]);
+
+        $partes = preg_split('/\s+/', trim($datos['nuevoClienteNombre']), 2) ?: [];
+
+        $cliente = Cliente::create([
+            'nombre' => $partes[0] ?? '',
+            'apellido' => $partes[1] ?? '',
+            'email' => $datos['nuevoClienteEmail'] ?: null,
+            'telefono' => $datos['nuevoClienteTelefono'] ?: null,
+        ]);
+
+        $this->cliente_id = (string) $cliente->id;
+        $this->reset('nuevoClienteNombre', 'nuevoClienteEmail', 'nuevoClienteTelefono');
+        $this->resetValidation();
+
+        unset($this->clientes);
+
+        $this->dispatch('cliente.creado');
     }
 
     /**
@@ -202,7 +256,7 @@ class Index extends Component
     /**
      * Cancela una reservación.
      */
-    public function cancelar(int $id): void
+    public function cancelarReserva(int $id): void
     {
         $this->dispatch('reserva.cancelar', reservaId: $id);
     }
