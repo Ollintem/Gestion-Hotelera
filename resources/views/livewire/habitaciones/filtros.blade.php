@@ -60,21 +60,6 @@
         />
     </div>
 
-    <div class="mt-4 flex flex-wrap items-center gap-4">
-        <div>
-            <x-dropdown
-                wire:change="$parent.filtrarPor($event.target.value)"
-                aria-label="Filtrar por estado"
-                :selected="$filtroEstado"
-                :options="[\App\Livewire\Habitaciones\Index::FILTRO_TODOS => 'Todos los estados'] + collect($opcionesEstado)->mapWithKeys(fn ($opcion) => [$opcion['clave'] => $opcion['etiqueta']])->all()"
-            >
-                <x-slot:leadingIcon>
-                    <flux:icon.funnel class="size-4" />
-                </x-slot:leadingIcon>
-            </x-dropdown>
-        </div>
-    </div>
-
     <div class="mt-6">
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
             @foreach ($tarjetas as $tarjeta)

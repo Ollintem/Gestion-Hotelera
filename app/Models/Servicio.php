@@ -13,25 +13,6 @@ class Servicio extends Model
 
     protected $table = 'servicios';
 
-    /**
-     * Catálogo cerrado de servicios que el hotel presta. El alta y la edición
-     * eligen de esta lista en lugar de escribir un nombre libre, de modo que el
-     * mismo concepto no se registre dos veces con dos grafías. El orden es el
-     * que usa el desplegable del formulario.
-     *
-     * Un servicio ya dado de alta con otro nombre se conserva: al editarlo,
-     * `nombreFueraDeCatalogo` lo mantiene como opción y la validación lo acepta.
-     *
-     * @var list<string>
-     */
-    public const CATALOGO = [
-        'Servicio a la habitación',
-        'Desayuno buffet',
-        'Lavandería',
-        'Spa y masajes',
-        'Traslado al aeropuerto',
-    ];
-
     protected $fillable = [
         'nombre',
         'descripcion',
@@ -58,16 +39,6 @@ class Servicio extends Model
     public function precioEnPesos(): string
     {
         return '$'.number_format((float) $this->precio, 2);
-    }
-
-    /**
-     * El nombre del servicio pertenece al catálogo cerrado del hotel. Un nombre
-     * fuera de él es heredado: se conserva al editar, pero no se admite en el
-     * alta.
-     */
-    public function estaEnCatalogo(): bool
-    {
-        return in_array($this->nombre, self::CATALOGO, true);
     }
 
     /**

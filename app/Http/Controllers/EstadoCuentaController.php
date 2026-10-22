@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Pago;
 use App\Models\Reserva;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,19 @@ class EstadoCuentaController extends Controller
     {
         abort_unless($this->perteneceAlUsuario($reserva), 403);
 
+        return $this->respuestaPdf($reserva);
+    }
+
+    /**
+     * Comprobante solicitado por recepción desde el módulo de pagos.
+     */
+    public function descargarGestion(Reserva $reserva): Response
+    {
+        return $this->respuestaPdf($reserva);
+    }
+
+    private function respuestaPdf(Reserva $reserva): Response
+    {
         $datos = $this->datosEstadoCuenta($reserva) + ['reserva' => $reserva];
 
         $pdf = Pdf::loadView('pdf.estado-cuenta', $datos)
@@ -68,6 +82,11 @@ class EstadoCuentaController extends Controller
         $totalConsumos = $reserva->totalConsumos();
         $pagado = $reserva->totalPagado();
         $pendiente = $reserva->saldoPendiente();
+        $pagos = $reserva->pagos()
+            ->where('estado', '!=', Pago::ESTADO_ANULADO)
+            ->orderBy('fecha_pago')
+            ->orderBy('id')
+            ->get();
 
         return compact(
             'noches',
@@ -77,7 +96,8 @@ class EstadoCuentaController extends Controller
             'subtotalExtras',
             'totalConsumos',
             'pagado',
-            'pendiente'
+            'pendiente',
+            'pagos'
         );
     }
 

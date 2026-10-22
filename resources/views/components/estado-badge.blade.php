@@ -6,7 +6,7 @@
         'Ocupada', 'Pendiente', 'En Proceso' => 'amber',
         'Limpieza', 'Mantenimiento' => 'sky',
         'Finalizada', 'Inactivo' => 'zinc',
-        'Cancelada' => 'rose',
+        'Cancelada', 'Anulado' => 'rose',
         default => 'zinc',
     };
 

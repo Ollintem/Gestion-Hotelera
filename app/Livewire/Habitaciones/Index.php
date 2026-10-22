@@ -30,9 +30,10 @@ class Index extends Component
     public const FILTRO_TODOS = 'todos';
 
     /**
-     * Opciones del desplegable "Todos los estados" y tarjetas KPI del panel.
-     * Cada opción agrupa un conjunto de estados reales de la tabla
-     * `habitaciones` y define la paleta de su tarjeta de métrica.
+     * Opciones de estado y tarjetas KPI del panel. Cada opción agrupa un conjunto
+     * de estados reales de la tabla `habitaciones` y define la paleta de su
+     * tarjeta de métrica, que es el control que recorta el inventario por
+     * estado.
      *
      * @var array<int, array{clave: string, etiqueta: string, estados: list<string>, icono: string, borde: string, iconoFondo: string, iconoTexto: string}>
      */
@@ -110,13 +111,20 @@ class Index extends Component
 
     public ?string $mensajeExito = null;
 
+    /**
+     * Número de avisos de éxito mostrados. Solo identifica el bloque del aviso
+     * en el DOM, de modo que un mensaje nuevo reinicie su temporizador aunque
+     * repita el texto del anterior.
+     */
+    public int $secuenciaMensaje = 0;
+
     public function updatedSearch(): void
     {
         $this->resetPage();
     }
 
     /**
-     * Aplica el filtro de una tarjeta KPI o del desplegable de estados.
+     * Aplica el filtro de una tarjeta KPI de estado.
      */
     public function filtrarPor(string $clave): void
     {
@@ -143,7 +151,7 @@ class Index extends Component
     {
         Habitacion::findOrFail($id)->delete();
 
-        $this->mensajeExito = 'Habitación eliminada correctamente.';
+        $this->mostrarMensajeExito('Habitación eliminada correctamente.');
     }
 
     /**
@@ -155,7 +163,18 @@ class Index extends Component
     {
         $this->dispatch('modal-close', name: 'habitacion-form');
 
-        $this->mensajeExito = $mensaje;
+        $this->mostrarMensajeExito($mensaje);
+    }
+
+    /**
+     * Retira el mensaje de éxito del inventario. Lo dispara el temporizador de
+     * Alpine que lo acompaña en la vista, para que no ocupe la cabecera más de
+     * tres segundos.
+     */
+    #[On('mensaje-exito-oculto')]
+    public function ocultarMensajeExito(): void
+    {
+        $this->reset('mensajeExito');
     }
 
     /**
@@ -263,6 +282,16 @@ class Index extends Component
             $habitacion->tipoHabitacion?->capacidad,
             $habitacion->tipoHabitacion?->precio_base,
         ]));
+    }
+
+    /**
+     * Publica un aviso de éxito y avanza la secuencia que lo ata a su
+     * temporizador de tres segundos en la vista.
+     */
+    private function mostrarMensajeExito(string $mensaje): void
+    {
+        $this->mensajeExito = $mensaje;
+        $this->secuenciaMensaje++;
     }
 
     /**

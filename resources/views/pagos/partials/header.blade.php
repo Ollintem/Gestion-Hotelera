@@ -4,9 +4,10 @@
 
 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div>
-        <flux:heading size="xl" class="!text-slate-900 !font-bold text-2xl">Pagos</flux:heading>
-        <flux:subheading class="!text-slate-600 !font-medium">
-            Registra y controla los pagos de las reservaciones. Total cobrado: ${{ number_format($total, 2) }}
+        <flux:heading size="xl" class="!text-2xl !font-bold !text-slate-900">Pagos y estado de cuenta</flux:heading>
+        <flux:subheading class="!font-medium !text-slate-600">
+            Registra abonos, consulta el saldo de cada folio y emite comprobantes. Total cobrado:
+            <span class="font-semibold text-slate-800">${{ number_format($total, 2) }}</span>
         </flux:subheading>
     </div>
 

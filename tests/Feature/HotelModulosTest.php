@@ -142,12 +142,15 @@ test('the hotel tables exist with their required columns', function () {
         ->and(Schema::hasColumns('clientes', ['id', 'nombre', 'apellido', 'email', 'telefono', 'tipo_identificacion', 'numero_identificacion']))->toBeTrue()
         ->and(Schema::hasColumns('reservas', ['id', 'cliente_id', 'user_id', 'check_in', 'check_out', 'estado', 'monto_total']))->toBeTrue()
         ->and(Schema::hasColumns('reserva_habitacion', ['id', 'reserva_id', 'habitacion_id', 'precio_por_noche']))->toBeTrue()
-        ->and(Schema::hasColumns('pagos', ['id', 'reserva_id', 'monto', 'metodo_pago', 'fecha_pago', 'notas']))->toBeTrue()
+        ->and(Schema::hasColumns('pagos', ['id', 'reserva_id', 'monto', 'metodo_pago', 'referencia', 'estado', 'user_id', 'fecha_pago', 'notas']))->toBeTrue()
         ->and(Schema::hasColumns('servicios', ['id', 'nombre', 'descripcion', 'categoria', 'precio']))->toBeTrue()
         ->and(Schema::hasColumns('reserva_servicio', ['id', 'reserva_id', 'servicio_id', 'cantidad', 'precio_aplicado', 'empleado_id', 'subtotal']))->toBeTrue()
         ->and(Schema::hasColumns('limpieza', ['id', 'habitacion_id', 'user_id', 'estado', 'notas']))->toBeTrue()
         ->and(Schema::hasColumns('gastos', ['id', 'concepto', 'monto', 'categoria', 'fecha_gasto']))->toBeTrue()
-        ->and(Schema::hasColumns('temporadas', ['id', 'nombre', 'fecha_inicio', 'fecha_fin', 'multiplicador_precio']))->toBeTrue();
+        ->and(Schema::hasColumns('temporadas', [
+            'id', 'nombre', 'fecha_inicio', 'fecha_fin',
+            'multiplicador_precio', 'precio_base', 'activo',
+        ]))->toBeTrue();
 });
 
 test('the seeder creates the admin user with the super-admin role and hotel data', function () {
