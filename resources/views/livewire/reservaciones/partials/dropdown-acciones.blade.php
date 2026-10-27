@@ -18,6 +18,36 @@
             this.posicionar();
             this.abierto = !this.abierto;
         },
+        confirmarCancelacion(id, codigo) {
+            this.abierto = false;
+
+            const cancelar = () => this.$wire.cancelarReserva(id);
+
+            if (!window.Swal) {
+                if (window.confirm(`¿Cancelar la reservación ${codigo}?`)) {
+                    cancelar();
+                }
+
+                return;
+            }
+
+            window.Swal.fire({
+                icon: 'warning',
+                title: '¿Cancelar la reservación?',
+                text: `La reservación ${codigo} se marcará como cancelada.`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, cancelar',
+                cancelButtonText: 'Volver',
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true,
+                focusCancel: true,
+            }).then((resultado) => {
+                if (resultado.isConfirmed) {
+                    cancelar();
+                }
+            });
+        },
     }"
     @keydown.escape.window="abierto = false"
     @scroll.window="abierto = false"
@@ -81,9 +111,8 @@
             <button
                 type="button"
                 role="menuitem"
-                wire:click="cancelar({{ $reserva->id }})"
-                wire:confirm="¿Cancelar la reservación {{ $this->codigo($reserva) }}?"
-                @click="abierto = false"
+                data-codigo="{{ $this->codigo($reserva) }}"
+                x-on:click="confirmarCancelacion({{ $reserva->id }}, $el.dataset.codigo)"
                 class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-600 transition-colors duration-150 hover:bg-rose-50 focus:outline-none focus-visible:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
             >
                 <flux:icon.x-circle class="size-4" />

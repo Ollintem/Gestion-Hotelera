@@ -101,11 +101,11 @@ test('pagina las reservaciones de diez en diez', function () {
 
     $componente = Livewire::actingAs($this->admin)->test(Index::class);
 
-    expect(substr_count($componente->html(), 'wire:click="cancelar('))->toBe(10);
+    expect(substr_count($componente->html(), 'x-on:click="confirmarCancelacion('))->toBe(10);
 
     $componente->call('gotoPage', 2);
 
-    expect(substr_count($componente->html(), 'wire:click="cancelar('))->toBe(2);
+    expect(substr_count($componente->html(), 'x-on:click="confirmarCancelacion('))->toBe(2);
 });
 
 test('mantiene constante el número de consultas al crecer el listado (anti N+1)', function () {
@@ -267,6 +267,60 @@ test('las acciones del menú emiten sus eventos', function () {
         ->assertDispatched('reserva.check-in', reservaId: $reserva->id)
         ->call('checkOut', $reserva->id)
         ->assertDispatched('reserva.check-out', reservaId: $reserva->id)
-        ->call('cancelar', $reserva->id)
+        ->call('cancelarReserva', $reserva->id)
         ->assertDispatched('reserva.cancelar', reservaId: $reserva->id);
+});
+
+test('el modal ofrece el alta rápida de un cliente', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('abrirModalCrear')
+        ->assertSee('Nombre completo')
+        ->assertSee('Guardar cliente');
+});
+
+test('crea un cliente desde el modal y lo deja seleccionado', function () {
+    $componente = Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('abrirModalCrear')
+        ->set('nuevoClienteNombre', 'María López García')
+        ->set('nuevoClienteEmail', 'maria@example.com')
+        ->set('nuevoClienteTelefono', '5512345678')
+        ->call('guardarClienteYSeleccionar')
+        ->assertHasNoErrors()
+        ->assertDispatched('cliente.creado');
+
+    $cliente = Cliente::firstOrFail();
+
+    $componente
+        ->assertSet('cliente_id', (string) $cliente->id)
+        ->assertSet('nuevoClienteNombre', '')
+        ->assertSet('nuevoClienteEmail', '')
+        ->assertSet('nuevoClienteTelefono', '')
+        ->assertSee($cliente->nombreCompleto());
+
+    expect($cliente->nombre)->toBe('María')
+        ->and($cliente->apellido)->toBe('López García')
+        ->and($cliente->email)->toBe('maria@example.com')
+        ->and($cliente->telefono)->toBe('5512345678');
+});
+
+test('valida los datos del cliente antes de crearlo desde el modal', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('abrirModalCrear')
+        ->set('nuevoClienteNombre', '')
+        ->set('nuevoClienteEmail', 'esto-no-es-un-correo')
+        ->call('guardarClienteYSeleccionar')
+        ->assertHasErrors(['nuevoClienteNombre' => 'required', 'nuevoClienteEmail' => 'email']);
+
+    expect(Cliente::count())->toBe(0);
+});
+
+test('el layout incluye el interceptor global de sesión expirada', function () {
+    $this->actingAs($this->admin)
+        ->get(route('reservaciones'))
+        ->assertOk()
+        ->assertSee("Livewire.hook('request'", false)
+        ->assertSee('preventDefault', false);
 });
