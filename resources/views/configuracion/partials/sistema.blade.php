@@ -1,9 +1,9 @@
-<div class="mb-6">
-    <flux:heading size="xl" class="!text-slate-900 !font-bold text-2xl">Configuración</flux:heading>
-    <flux:subheading class="!text-slate-600 !font-medium">
-        Información general del sistema Novastay.
-    </flux:subheading>
-</div>
+{{-- ======================================================
+     CONFIGURACIÓN GENERAL (SOLO LECTURA)
+
+     Las tarjetas resumen el estado actual del sistema. La
+     cabecera y el selector de apartado viven en el index.
+     ====================================================== --}}
 
 <div class="grid gap-4 lg:grid-cols-2">
     <flux:card>
@@ -19,6 +19,14 @@
                 <dd>
                     <flux:badge color="amber" size="sm" class="!bg-amber-100 !text-amber-800 !font-semibold">{{ $entorno }}</flux:badge>
                 </dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+                <dt class="text-zinc-500">Zona horaria</dt>
+                <dd class="font-medium">{{ $zonaHoraria }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+                <dt class="text-zinc-500">Idioma</dt>
+                <dd class="font-medium">{{ strtoupper($idioma) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-zinc-500">Temporada vigente</dt>
@@ -76,21 +84,3 @@
         </dl>
     </flux:card>
 </div>
-
-<flux:card class="mt-4">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <flux:heading size="lg" class="!text-slate-800 !font-semibold">Cuenta y apariencia</flux:heading>
-            <flux:text size="sm" class="!text-slate-600 !font-semibold">Gestiona tu perfil, contraseña y tema desde los ajustes de cuenta.</flux:text>
-        </div>
-
-        <div class="flex shrink-0 flex-wrap gap-2">
-            <flux:button variant="outline" :href="route('settings.profile')" wire:navigate>
-                Mi perfil
-            </flux:button>
-            <flux:button variant="outline" :href="route('settings.appearance')" wire:navigate>
-                Apariencia
-            </flux:button>
-        </div>
-    </div>
-</flux:card>
