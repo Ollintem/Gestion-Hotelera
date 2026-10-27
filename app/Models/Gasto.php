@@ -13,6 +13,7 @@ class Gasto extends Model
         'monto',
         'categoria',
         'fecha_gasto',
+        'observaciones',
     ];
 
     /**
