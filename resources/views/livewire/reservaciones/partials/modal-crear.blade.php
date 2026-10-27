@@ -85,10 +85,26 @@
                 >
                     <div class="grid gap-5 sm:grid-cols-2">
                         {{-- Cliente --}}
-                        <div class="sm:col-span-2">
-                            <label for="cliente_id" class="{{ $etiquetaCampo }}">
-                                Cliente <span class="text-red-500">*</span>
-                            </label>
+                        <div
+                            class="sm:col-span-2"
+                            x-data="{ mostrarNuevoCliente: false }"
+                            @cliente.creado.window="mostrarNuevoCliente = false"
+                        >
+                            <div class="flex items-center justify-between gap-3">
+                                <label for="cliente_id" class="{{ $etiquetaCampo }}">
+                                    Cliente <span class="text-red-500">*</span>
+                                </label>
+
+                                <button
+                                    type="button"
+                                    @click="mostrarNuevoCliente = ! mostrarNuevoCliente"
+                                    class="-mt-1.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-amber-600 transition-colors duration-200 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                                >
+                                    <flux:icon.plus class="size-3.5" />
+                                    <span x-text="mostrarNuevoCliente ? 'Cerrar' : 'Agregar nuevo'"></span>
+                                </button>
+                            </div>
+
                             <x-dropdown
                                 id="cliente_id"
                                 wire:model="cliente_id"
@@ -106,6 +122,95 @@
                                 </x-slot:leadingIcon>
                             </x-dropdown>
                             <flux:error name="cliente_id" class="mt-1.5" />
+
+                            <div
+                                x-show="mostrarNuevoCliente"
+                                x-cloak
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 -translate-y-1"
+                                x-transition:enter-end="opacity-100 translate-y-0"
+                                x-transition:leave="transition ease-in duration-150"
+                                x-transition:leave-start="opacity-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 -translate-y-1"
+                                class="mt-3 space-y-3 rounded-xl border border-dashed border-amber-300/70 bg-amber-50/40 p-4 dark:border-amber-500/30 dark:bg-amber-950/20"
+                            >
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div class="sm:col-span-2">
+                                        <label for="nuevo_cliente_nombre" class="{{ $etiquetaCampo }}">Nombre completo <span class="text-red-500">*</span></label>
+                                        <div class="relative">
+                                            <input
+                                                id="nuevo_cliente_nombre"
+                                                type="text"
+                                                wire:model="nuevoClienteNombre"
+                                                placeholder="Ej. Juan Pérez"
+                                                class="{{ $campo }}"
+                                                x-on:keydown.enter.prevent="$wire.guardarClienteYSeleccionar()"
+                                            />
+                                            <flux:icon.user class="{{ $icono }}" />
+                                        </div>
+                                        <flux:error name="nuevoClienteNombre" class="mt-1.5" />
+                                    </div>
+
+                                    <div>
+                                        <label for="nuevo_cliente_email" class="{{ $etiquetaCampo }}">Correo</label>
+                                        <div class="relative">
+                                            <input
+                                                id="nuevo_cliente_email"
+                                                type="email"
+                                                wire:model="nuevoClienteEmail"
+                                                placeholder="cliente@correo.com"
+                                                class="{{ $campo }}"
+                                                x-on:keydown.enter.prevent="$wire.guardarClienteYSeleccionar()"
+                                            />
+                                            <flux:icon.envelope class="{{ $icono }}" />
+                                        </div>
+                                        <flux:error name="nuevoClienteEmail" class="mt-1.5" />
+                                    </div>
+
+                                    <div>
+                                        <label for="nuevo_cliente_telefono" class="{{ $etiquetaCampo }}">Teléfono</label>
+                                        <div class="relative">
+                                            <input
+                                                id="nuevo_cliente_telefono"
+                                                type="text"
+                                                wire:model="nuevoClienteTelefono"
+                                                placeholder="55 1234 5678"
+                                                class="{{ $campo }}"
+                                                x-on:keydown.enter.prevent="$wire.guardarClienteYSeleccionar()"
+                                            />
+                                            <flux:icon.phone class="{{ $icono }}" />
+                                        </div>
+                                        <flux:error name="nuevoClienteTelefono" class="mt-1.5" />
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="mostrarNuevoCliente = false"
+                                        class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:text-slate-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+                                    >
+                                        Cancelar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        wire:click="guardarClienteYSeleccionar"
+                                        wire:loading.attr="disabled"
+                                        wire:target="guardarClienteYSeleccionar"
+                                        class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-amber-600/20 transition-all duration-200 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2 active:scale-95 disabled:pointer-events-none disabled:opacity-70 dark:focus:ring-offset-zinc-900"
+                                    >
+                                        <span wire:loading.remove wire:target="guardarClienteYSeleccionar" class="flex items-center gap-1.5">
+                                            <flux:icon.check class="size-3.5" />
+                                            Guardar cliente
+                                        </span>
+                                        <span wire:loading wire:target="guardarClienteYSeleccionar" class="flex items-center gap-1.5">
+                                            <flux:icon.arrow-path class="size-3.5 animate-spin" />
+                                            Guardando...
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {{-- Check-in --}}
