@@ -18,10 +18,12 @@ class Reportes extends Component
     {
         $reservasPorEstado = Reserva::select('estado', DB::raw('count(*) as total'))
             ->groupBy('estado')
+            ->orderBy('estado')
             ->pluck('total', 'estado');
 
         $pagosPorMetodo = Pago::select('metodo_pago', DB::raw('count(*) as total'), DB::raw('sum(monto) as monto'))
             ->groupBy('metodo_pago')
+            ->orderByDesc('monto')
             ->get();
 
         $gastosPorCategoria = Gasto::select('categoria', DB::raw('sum(monto) as monto'))
@@ -40,7 +42,7 @@ class Reportes extends Component
             ->limit(8)
             ->get();
 
-        return view('reportes.index', [
+        return view('livewire.reportes.index', [
             'reservasPorEstado' => $reservasPorEstado,
             'pagosPorMetodo' => $pagosPorMetodo,
             'gastosPorCategoria' => $gastosPorCategoria,
