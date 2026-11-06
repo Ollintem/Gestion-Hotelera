@@ -80,6 +80,20 @@
             </form>
         </div>
 
+        @if (session('error'))
+            <div
+                data-notificacion
+                data-notificacion-duracion="3000"
+                role="alert"
+                class="mb-6 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 transition duration-200"
+            >
+                <span class="flex-1">{{ session('error') }}</span>
+                <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        @endif
+
         @if ($habitaciones->isEmpty())
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
                 <h2 class="text-xl font-bold text-slate-900 mb-2">Sin habitaciones disponibles</h2>
@@ -91,16 +105,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($habitaciones as $habitacion)
                     @php
-                        $imagenes = [
-                            'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=800&q=80',
-                            'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
-                            'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80',
-                        ];
                         $total = round((float) $habitacion->tipoHabitacion->precio_base * $noches, 2);
                     @endphp
                     <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition duration-300 flex flex-col">
                         <div class="relative h-56 bg-slate-200">
-                            <img src="{{ $imagenes[$loop->index % 3] }}" alt="{{ $habitacion->tipoHabitacion->nombre }}" class="w-full h-full object-cover">
+                            <img src="{{ $habitacion->imagen() }}" alt="{{ $habitacion->tipoHabitacion->nombre }}" loading="lazy" class="w-full h-full object-cover">
                             <div class="absolute top-4 left-4 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full shadow-sm">Disponible</div>
                             <div class="absolute top-4 right-4 bg-white text-slate-700 text-xs font-bold px-3 py-1 rounded-md shadow-sm">#{{ $habitacion->numero_habitacion }}</div>
                         </div>

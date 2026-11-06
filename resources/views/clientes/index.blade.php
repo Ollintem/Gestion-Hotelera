@@ -1,9 +1,6 @@
 <div>
-    @if ($mensajeExito)
-        <flux:callout variant="success" icon="check-circle" class="mb-4">
-            <p>{{ $mensajeExito }}</p>
-        </flux:callout>
-    @endif
+    <x-aviso-temporal :mensaje="$mensajeExito" tipo="success" clave="clientes-exito" />
+    <x-aviso-temporal :mensaje="$mensajeError ?? null" tipo="error" clave="clientes-error" />
 
     @include('clientes.partials.header')
 

@@ -101,11 +101,10 @@ new #[Layout('components.layouts.app')] class extends Component {
 
                         @if (session('status') === 'verification-link-sent')
                             <flux:text
-                                x-data="{ visible: true }"
-                                x-init="setTimeout(() => visible = false, 5000)"
-                                x-show="visible"
-                                x-transition.duration.300ms
-                                class="mt-2 text-sm font-medium !text-green-600"
+                                data-notificacion
+                                data-notificacion-duracion="3000"
+                                role="status"
+                                class="mt-2 text-sm font-medium !text-green-600 transition duration-200"
                             >
                                 {{ __('A new verification link has been sent to your email address.') }}
                             </flux:text>

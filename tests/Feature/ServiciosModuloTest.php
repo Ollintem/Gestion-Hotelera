@@ -593,20 +593,16 @@ test('el modal ofrece la categoría como desplegable de Alpine con la opción de
         ->toContain("selected: '".$categoria->id."'");
 });
 
-test('la alerta de éxito se pinta con Alpine escuchando el evento de Livewire', function () {
+test('los avisos de servicios usan el mecanismo global de notificaciones', function () {
     $html = Livewire::actingAs($this->admin)->test(Servicios::class)->html();
+    $js = file_get_contents(resource_path('js/notificaciones.js'));
 
     expect($html)
-        ->toContain('x-data="{ show: false, mensaje: \'\' }"')
-        ->toContain('x-on:notificacion.window="show = true; mensaje = $event.detail.mensaje; setTimeout(() => show = false, 3000)"')
-        ->toContain('x-show="show"')
-        ->toContain('x-transition')
-        ->toContain('<span x-text="mensaje"')
-        ->toContain('aria-live="polite"')
-        // El toast arranca oculto: no debe quedar un mensaje de éxito quemado en
-        // el HTML después de recargar la página.
-        ->toContain('x-cloak')
-        ->and($html)->not->toContain('Servicio eliminado correctamente.');
+        ->not->toContain('x-on:notificacion.window')
+        ->not->toContain('Servicio eliminado correctamente.')
+        ->and($js)
+        ->toContain('const DURACION_MS = 3000')
+        ->toContain("window.addEventListener('notificacion', mostrar)");
 });
 
 test('las acciones de la tabla emiten el evento de notificación', function () {

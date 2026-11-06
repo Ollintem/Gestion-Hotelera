@@ -162,7 +162,7 @@ test('el formulario de nueva tarea guarda cuando los tres valores llegan enlazad
         ->and(TareaLimpieza::first()->estado)->toBe('En Proceso');
 });
 
-test('el panel muestra un toast flotante de éxito en lugar del callout antiguo', function () {
+test('el panel muestra el aviso de éxito con el mecanismo temporal global', function () {
     $tipo = TipoHabitacion::create([
         'nombre' => 'Estándar',
         'precio_base' => 899.00,
@@ -190,14 +190,11 @@ test('el panel muestra un toast flotante de éxito en lugar del callout antiguo'
 
     expect($html)
         ->toContain('Tarea de limpieza creada correctamente.')
-        // Posicionamiento y convención del toast del proyecto.
-        ->toContain('fixed right-4 top-4 z-[100]')
-        ->toContain('aria-live="polite"')
-        // Reacciona a `$mensajeExito` vía `@entangle` (sin eventos del backend).
-        ->toContain("entangle('mensajeExito')")
-        ->toContain('setTimeout(() => this.visible = false, 3000)')
-        // El callout estático desapareció.
-        ->not->toContain('flux:callout');
+        // El aviso usa el mecanismo central de auto ocultado.
+        ->toContain('data-notificacion')
+        ->toContain('data-notificacion-duracion="3000"')
+        ->toContain('data-notificacion-cerrar')
+        ->toContain('aria-live="polite"');
 });
 
 test('el botón de eliminar abre el diálogo Alpine y solo confirma llama a eliminar', function () {

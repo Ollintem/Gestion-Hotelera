@@ -6,7 +6,8 @@
      * `->with('success', ...)`, `->with('error', ...)` o `->with('aviso', ...)`
      * de los módulos (reservaciones, habitaciones, servicios, clientes, pagos,
      * gastos, empleados, roles, configuración, usuarios...) aparezca siempre
-     * en el mismo lugar y se oculte solo a los 5 segundos.
+     * en el mismo lugar y se oculte automáticamente a los 3000 ms mediante el
+     * mecanismo central de `resources/js/notificaciones.js`.
      */
     $estilos = [
         'success' => [
@@ -59,12 +60,10 @@
             @php($estilo = $estilos[$clave])
 
             <div
-                x-data="{ visible: true }"
-                x-init="setTimeout(() => visible = false, 5000)"
-                x-show="visible"
-                x-transition.duration.300ms
+                data-notificacion
+                data-notificacion-duracion="3000"
                 role="{{ $estilo['papel'] }}"
-                class="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg shadow-slate-900/10 {{ $estilo['clases'] }}"
+                class="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg shadow-slate-900/10 transition duration-200 {{ $estilo['clases'] }}"
             >
                 <svg class="mt-0.5 size-5 shrink-0 {{ $estilo['icono'] }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $estilo['trazo'] }}" />
@@ -74,7 +73,7 @@
 
                 <button
                     type="button"
-                    x-on:click="visible = false"
+                    data-notificacion-cerrar
                     class="-mr-1 -mt-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
                     aria-label="{{ __('Cerrar notificación') }}"
                 >

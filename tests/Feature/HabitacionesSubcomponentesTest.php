@@ -585,11 +585,11 @@ test('el mensaje de éxito se retira solo a los tres segundos', function () {
         ->test(HabitacionesIndex::class)
         ->dispatch('habitacion-guardada', mensaje: 'Habitación creada correctamente.');
 
-    // El temporizador vive en la vista y avisa al contenedor: el servidor solo
-    // obedece la señal.
+    // El aviso usa el mecanismo global de 3 s y conserva la clave por secuencia
+    // para remontarse cuando se repite el mismo texto.
     expect($componente->html())
-        ->toContain('x-init="setTimeout(() => $dispatch(\'mensaje-exito-oculto\'), 3000)"')
-        ->toContain('wire:key="mensaje-exito-1"');
+        ->toContain('data-notificacion-duracion="3000"')
+        ->toContain('wire:key="aviso-success-1"');
 
     $componente
         ->dispatch('mensaje-exito-oculto')
@@ -606,13 +606,13 @@ test('dos avisos seguidos reinician el temporizador aunque repitan el texto', fu
         ->test(HabitacionesIndex::class)
         ->call('eliminar', $primera->id);
 
-    expect($componente->html())->toContain('wire:key="mensaje-exito-1"');
+    expect($componente->html())->toContain('wire:key="aviso-success-1"');
 
     $componente->call('eliminar', $segunda->id);
 
-    // Mismo texto, clave distinta: Alpine vuelve a armar el temporizador en vez
-    // de heredar el del aviso anterior.
-    expect($componente->html())->toContain('wire:key="mensaje-exito-2"');
+    // Mismo texto, clave distinta: el navegador monta un aviso nuevo y le arma
+    // su propio temporizador en vez de heredar el del aviso anterior.
+    expect($componente->html())->toContain('wire:key="aviso-success-2"');
 });
 
 test('el contenedor elimina una habitación del inventario', function () {

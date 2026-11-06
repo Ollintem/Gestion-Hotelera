@@ -9,10 +9,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
 class Limpieza extends Component
 {
+    use WithPagination;
+
+    public const POR_PAGINA = 12;
+
     public string $pagina = 'index';
 
     public bool $mostrarModal = false;
@@ -52,10 +57,17 @@ class Limpieza extends Component
             $tareasQuery->where('user_id', $user?->id ?? 0);
         }
 
+        $conteos = (clone $tareasQuery)
+            ->reorder()
+            ->selectRaw('estado, count(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         $datos = [
-            'tareas' => $tareasQuery->get(),
-            'habitaciones' => Habitacion::orderBy('numero_habitacion')->get(),
-            'usuarios' => User::role('limpieza')->orderBy('name')->get(),
+            'tareas' => $tareasQuery->paginate(self::POR_PAGINA, ['*'], 'paginaLimpieza'),
+            'conteos' => $conteos,
+            'habitaciones' => Habitacion::orderBy('numero_habitacion')->get(['id', 'numero_habitacion']),
+            'usuarios' => User::role('limpieza')->orderBy('name')->get(['id', 'name']),
             'estados' => ['Pendiente', 'En Proceso', 'Completado'],
         ];
 
@@ -68,6 +80,8 @@ class Limpieza extends Component
 
     public function crear(): void
     {
+        abort_unless(auth()->user()?->can('limpieza.crear'), 403);
+
         $user = Auth::user();
         $esLimpieza = $user?->hasRole('limpieza') || ($user && ($user->rol === 'limpieza' || $user->rol === 'Limpieza'));
 
@@ -85,6 +99,8 @@ class Limpieza extends Component
 
     public function editar(int $id): void
     {
+        abort_unless(auth()->user()?->can('limpieza.editar'), 403);
+
         $tarea = TareaLimpieza::findOrFail($id);
         $user = Auth::user();
         $esLimpieza = $user?->hasRole('limpieza') || ($user && ($user->rol === 'limpieza' || $user->rol === 'Limpieza'));
@@ -112,6 +128,8 @@ class Limpieza extends Component
 
     public function guardar(): void
     {
+        abort_unless(auth()->user()?->can($this->tareaId ? 'limpieza.editar' : 'limpieza.crear'), 403);
+
         $user = Auth::user();
         $esLimpieza = $user?->hasRole('limpieza') || ($user && ($user->rol === 'limpieza' || $user->rol === 'Limpieza'));
 
@@ -186,6 +204,8 @@ class Limpieza extends Component
 
     public function eliminar(int $id): void
     {
+        abort_unless(auth()->user()?->can('limpieza.eliminar'), 403);
+
         $user = Auth::user();
         $esLimpieza = $user?->hasRole('limpieza') || ($user && ($user->rol === 'limpieza' || $user->rol === 'Limpieza'));
 

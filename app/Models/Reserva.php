@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoHabitacion;
+use App\Enums\EstadoReserva;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +24,12 @@ class Reserva extends Model
      */
     public const ESTADOS = ['Pendiente', 'Confirmada', 'Cancelada', 'Finalizada'];
 
+    public const ESTADO_PENDIENTE = 'Pendiente';
+
+    public const ESTADO_CONFIRMADA = 'Confirmada';
+
+    public const ESTADO_CANCELADA = 'Cancelada';
+
     /**
      * Estado en el que la reservación ya cerró y sus consumos extras pasaron a
      * ser facturados.
@@ -34,7 +42,7 @@ class Reserva extends Model
      *
      * @var list<string>
      */
-    public const ESTADOS_ACTIVOS = ['Confirmada'];
+    public const ESTADOS_ACTIVOS = [self::ESTADO_CONFIRMADA];
 
     protected $fillable = [
         'cliente_id',
@@ -62,9 +70,35 @@ class Reserva extends Model
     /**
      * Noches ocupadas entre la llegada y la salida.
      */
+    public function estadoEnum(): EstadoReserva
+    {
+        return EstadoReserva::from($this->estado);
+    }
+
+    /**
+     * Una reservacion admite check-in mientras no se haya registrado la llegada.
+     * Las reservaciones antiguas creadas como Confirmada sin fecha real de
+     * llegada se tratan como pendientes para no perder compatibilidad.
+     */
+    public function puedeHacerCheckIn(): bool
+    {
+        return $this->estadoEnum()->permiteCheckIn()
+            || ($this->estado === self::ESTADO_CONFIRMADA && $this->fecha_hora_checkin === null);
+    }
+
+    public function puedeHacerCheckOut(): bool
+    {
+        return $this->estadoEnum()->permiteCheckOut() && $this->fecha_hora_checkout === null;
+    }
+
+    public function puedeCancelarse(): bool
+    {
+        return $this->estadoEnum()->permiteCancelacion();
+    }
+
     public function totalNoches(): float
     {
-        return (float) $this->check_in->diffInDays($this->check_out);
+        return (float) $this->check_in->copy()->startOfDay()->diffInDays($this->check_out->copy()->startOfDay());
     }
 
     /**
@@ -76,12 +110,14 @@ class Reserva extends Model
     {
         $noches = $this->totalNoches();
 
-        $tarifa = (float) $this->habitacionesAsignadas()
-            ->get()
-            ->reduce(
-                fn (float $carry, $asignacion) => $carry + ((float) $asignacion->precio_por_noche * $noches),
-                0.0
-            );
+        $asignaciones = $this->relationLoaded('habitacionesAsignadas')
+            ? $this->habitacionesAsignadas
+            : $this->habitacionesAsignadas()->get();
+
+        $tarifa = (float) $asignaciones->reduce(
+            fn (float $carry, $asignacion) => $carry + ((float) $asignacion->precio_por_noche * $noches),
+            0.0
+        );
 
         return $tarifa > 0 ? round($tarifa, 2) : round((float) $this->monto_total, 2);
     }
@@ -91,7 +127,11 @@ class Reserva extends Model
      */
     public function subtotalServicios(): float
     {
-        return round((float) $this->serviciosAsignados()->sum('subtotal'), 2);
+        $servicios = $this->relationLoaded('serviciosAsignados')
+            ? $this->serviciosAsignados
+            : $this->serviciosAsignados()->get();
+
+        return round((float) $servicios->sum('subtotal'), 2);
     }
 
     /**
@@ -100,7 +140,11 @@ class Reserva extends Model
      */
     public function totalPagado(): float
     {
-        return round((float) $this->pagos()
+        $pagos = $this->relationLoaded('pagos')
+            ? $this->pagos
+            : $this->pagos()->get();
+
+        return round((float) $pagos
             ->where('estado', Pago::ESTADO_COMPLETADO)
             ->sum('monto'), 2);
     }
@@ -141,11 +185,15 @@ class Reserva extends Model
      */
     public function realizarCheckOut(string $motivo = ''): void
     {
+        if (! $this->puedeHacerCheckOut()) {
+            return;
+        }
+
         DB::transaction(function () use ($motivo): void {
             $this->loadMissing('habitaciones');
 
             foreach ($this->habitaciones as $habitacion) {
-                $habitacion->update(['estado' => 'Limpieza']);
+                $habitacion->update(['estado' => EstadoHabitacion::Limpieza->value]);
 
                 Limpieza::firstOrCreate(
                     ['habitacion_id' => $habitacion->id],
@@ -174,13 +222,13 @@ class Reserva extends Model
      */
     public function realizarCheckIn(string $motivo = ''): void
     {
-        DB::transaction(function () use ($motivo): void {
-            if ($this->estado !== 'Pendiente') {
-                return;
-            }
+        if (! $this->puedeHacerCheckIn()) {
+            return;
+        }
 
+        DB::transaction(function () use ($motivo): void {
             $this->update([
-                'estado' => 'Confirmada',
+                'estado' => self::ESTADO_CONFIRMADA,
                 'fecha_hora_checkin' => now(),
                 'user_checkin_id' => auth()->id(),
                 'observaciones_checkin' => $motivo !== '' ? $motivo : null,
@@ -189,9 +237,35 @@ class Reserva extends Model
             $this->loadMissing('habitaciones');
 
             foreach ($this->habitaciones as $habitacion) {
-                $habitacion->update(['estado' => 'Ocupada']);
+                $habitacion->update(['estado' => EstadoHabitacion::Ocupada->value]);
             }
         });
+    }
+
+    /**
+     * Cancela una reservacion que aun no registro su llegada. No toca el estado
+     * de las habitaciones salvo que una version anterior las hubiera marcado
+     * como "Reservada"; nunca libera una habitacion ocupada por otra estancia.
+     */
+    public function cancelar(): bool
+    {
+        if (! $this->puedeCancelarse()) {
+            return false;
+        }
+
+        DB::transaction(function (): void {
+            $this->loadMissing('habitaciones');
+
+            foreach ($this->habitaciones as $habitacion) {
+                if ($habitacion->estado === 'Reservada') {
+                    $habitacion->update(['estado' => EstadoHabitacion::Disponible->value]);
+                }
+            }
+
+            $this->update(['estado' => self::ESTADO_CANCELADA]);
+        });
+
+        return true;
     }
 
     /**

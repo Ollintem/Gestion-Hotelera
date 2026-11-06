@@ -46,8 +46,16 @@
         </div>
 
         @if (session('success'))
-            <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
-                {{ session('success') }}
+            <div
+                data-notificacion
+                data-notificacion-duracion="3000"
+                role="status"
+                class="mb-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 transition duration-200"
+            >
+                <span class="flex-1">{{ session('success') }}</span>
+                <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
             </div>
         @endif
 

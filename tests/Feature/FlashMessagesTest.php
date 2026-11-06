@@ -11,15 +11,14 @@ beforeEach(function () {
     $this->admin->givePermissionTo('usuarios.ver');
 });
 
-test('el mensaje flash se muestra como notificacion flotante con auto ocultado a los 5 segundos', function () {
+test('el mensaje flash se muestra como notificacion flotante con auto ocultado a los 3 segundos', function () {
     $this->actingAs($this->admin)
         ->withSession(['success' => 'Usuario creado correctamente.'])
         ->get(route('usuarios.index'))
         ->assertOk()
-        ->assertSee('x-data="{ visible: true }"', false)
-        ->assertSee('x-init="setTimeout(() => visible = false, 5000)"', false)
-        ->assertSee('x-show="visible"', false)
-        ->assertSee('x-transition.duration.300ms', false)
+        ->assertSee('data-notificacion', false)
+        ->assertSee('data-notificacion-duracion="3000"', false)
+        ->assertSee('data-notificacion-cerrar', false)
         ->assertSee('Usuario creado correctamente.');
 });
 
@@ -27,7 +26,7 @@ test('sin mensaje flash la notificacion flotante no se renderiza', function () {
     $this->actingAs($this->admin)
         ->get(route('usuarios.index'))
         ->assertOk()
-        ->assertDontSee('setTimeout(() => visible = false, 5000)');
+        ->assertDontSee('data-notificacion-duracion="3000"', false);
 });
 
 test('cada tipo de mensaje flash usa su propio estilo y rol de accesibilidad', function () {
@@ -69,13 +68,28 @@ test('la notificacion encaja arriba de la interfaz sin tapar el contenido', func
         ->toContain('aria-live="polite"');
 });
 
-test('los avisos de estado de las pantallas de auth tambien se ocultan solos', function () {
+test('los avisos de estado de las pantallas de auth tambien usan el auto ocultado global', function () {
     expect(File::get(resource_path('views/components/auth-session-status.blade.php')))
-        ->toContain('x-init="setTimeout(() => visible = false, 5000)"');
+        ->toContain('data-notificacion')
+        ->toContain('data-notificacion-duracion="3000"');
 
     expect(File::get(resource_path('views/livewire/auth/verify-email.blade.php')))
-        ->toContain('x-init="setTimeout(() => visible = false, 5000)"');
+        ->toContain('data-notificacion')
+        ->toContain('data-notificacion-duracion="3000"');
 
     expect(File::get(resource_path('views/livewire/settings/profile.blade.php')))
-        ->toContain('x-init="setTimeout(() => visible = false, 5000)"');
+        ->toContain('data-notificacion')
+        ->toContain('data-notificacion-duracion="3000"');
+});
+
+test('el mecanismo global usa 3000 ms y temporizadores independientes por aviso', function () {
+    $js = File::get(resource_path('js/notificaciones.js'));
+
+    expect($js)
+        ->toContain('const DURACION_MS = 3000')
+        ->toContain('const temporizadores = new WeakMap()')
+        ->toContain("window.addEventListener('notificacion', mostrar)")
+        ->toContain("window.addEventListener('novastay:notificacion', mostrar)")
+        ->toContain('new MutationObserver')
+        ->toContain('data-notificacion-cerrar');
 });

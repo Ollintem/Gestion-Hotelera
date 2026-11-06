@@ -129,6 +129,10 @@ class Temporadas extends Component
      */
     public function guardar(): void
     {
+        $permiso = $this->temporadaId === null ? 'temporadas.crear' : 'temporadas.editar';
+
+        abort_unless(auth()->user()?->can($permiso), 403);
+
         $this->validate(
             [
                 'nombre' => ['required', 'string', 'max:100'],
@@ -174,6 +178,8 @@ class Temporadas extends Component
      */
     public function eliminar(int $id): void
     {
+        abort_unless(auth()->user()?->can('temporadas.eliminar'), 403);
+
         Temporada::findOrFail($id)->delete();
 
         $this->dispatch('notificacion', mensaje: 'Temporada eliminada correctamente.');
@@ -186,6 +192,8 @@ class Temporadas extends Component
      */
     public function alternarActivo(int $id): void
     {
+        abort_unless(auth()->user()?->can('temporadas.editar'), 403);
+
         $temporada = Temporada::findOrFail($id);
 
         $temporada->update(['activo' => ! $temporada->activo]);

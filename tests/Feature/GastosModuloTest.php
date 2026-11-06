@@ -272,11 +272,11 @@ test('una categoría elegida en el desplegable llega íntegra a la consulta que 
 
 /*
 |--------------------------------------------------------------------------
-| Duración de las notificaciones (5000 ms)
+| Duración de las notificaciones (3000 ms)
 |--------------------------------------------------------------------------
 */
 
-test('la notificación de éxito al guardar un gasto se oculta exactamente a los 5000 ms', function () {
+test('la notificación de éxito al guardar un gasto se oculta exactamente a los 3000 ms', function () {
     Livewire::actingAs($this->admin)
         ->test(Gastos::class)
         ->call('crear')
@@ -287,10 +287,10 @@ test('la notificación de éxito al guardar un gasto se oculta exactamente a los
         ->call('guardar')
         ->assertSet('mensajeExito', 'Gasto registrado correctamente.')
         ->assertSee('Gasto registrado correctamente.')
-        ->assertSee('this.temporizador = setTimeout(() => { this.visible = false }, 5000)', false);
+        ->assertSee('data-notificacion-duracion="3000"', false);
 });
 
-test('la notificación de error al crear un gasto también se oculta a los 5000 ms', function () {
+test('la notificación de error al crear un gasto también se oculta a los 3000 ms', function () {
     $soloVer = User::factory()->create();
     $soloVer->assignRole('recepcionista');
 
@@ -299,5 +299,5 @@ test('la notificación de error al crear un gasto también se oculta a los 5000 
         ->call('crear')
         ->assertSet('mensajeError', 'No tienes permiso para crear gastos.')
         ->assertSee('No tienes permiso para crear gastos.')
-        ->assertSee('this.temporizador = setTimeout(() => { this.visible = false }, 5000)', false);
+        ->assertSee('data-notificacion-duracion="3000"', false);
 });

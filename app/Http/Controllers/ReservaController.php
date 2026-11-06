@@ -2,27 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Reservaciones\IniciarReservaRequest;
+use App\Http\Requests\Reservaciones\StoreReservaRequest;
 use App\Models\Cliente;
 use App\Models\Habitacion;
-use App\Models\Reserva;
-use App\Models\ReservaHabitacion;
+use App\Services\Habitaciones\DisponibilidadHabitaciones;
+use App\Services\Reservaciones\CrearReserva;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ReservaController extends Controller
 {
-    public function iniciar(Request $request): RedirectResponse
+    public function __construct(
+        private readonly CrearReserva $crearReserva,
+        private readonly DisponibilidadHabitaciones $disponibilidad,
+    ) {}
+
+    public function iniciar(IniciarReservaRequest $request): RedirectResponse
     {
-        $validado = $request->validate([
-            'habitacion_id' => ['required', 'exists:habitaciones,id'],
-            'check_in' => ['required', 'date', 'after_or_equal:today'],
-            'check_out' => ['required', 'date', 'after:check_in'],
-            'guests' => ['nullable', 'integer', 'min:1'],
-            'accion' => ['nullable', 'in:login,registro'],
-        ]);
+        $validado = $request->validated();
+
+        if (! $this->disponibilidad->estaDisponible(
+            (int) $validado['habitacion_id'],
+            $validado['check_in'],
+            $validado['check_out'],
+        )) {
+            return back()
+                ->withErrors(['habitacion_id' => 'La habitacion ya no esta disponible para las fechas seleccionadas.'])
+                ->withInput();
+        }
 
         session()->put('reserva.pendiente', $validado);
 
@@ -32,13 +41,13 @@ class ReservaController extends Controller
             return redirect($accion === 'registro'
                 ? route('register')
                 : route('login'))
-                ->with('aviso', 'Inicia sesión o crea una cuenta para completar tu reservación.');
+                ->with('aviso', 'Inicia sesion o crea una cuenta para completar tu reservacion.');
         }
 
         return redirect()->route('reserva.confirmar');
     }
 
-    public function confirmar(): View
+    public function confirmar(): View|RedirectResponse
     {
         $datos = session('reserva.pendiente');
 
@@ -47,7 +56,24 @@ class ReservaController extends Controller
         $habitacion = Habitacion::with('tipoHabitacion')->findOrFail($datos['habitacion_id']);
         $checkIn = Carbon::parse($datos['check_in']);
         $checkOut = Carbon::parse($datos['check_out']);
-        $noches = $checkIn->diffInDays($checkOut);
+        $noches = (int) $checkIn->diffInDays($checkOut);
+        $huespedes = (int) ($datos['guests'] ?? 1);
+        $capacidad = (int) ($habitacion->tipoHabitacion?->capacidad ?? 0);
+
+        if ($capacidad > 0 && $huespedes > $capacidad) {
+            return redirect()
+                ->route('habitaciones.public')
+                ->with('error', "La habitacion admite hasta {$capacidad} huespedes.");
+        }
+
+        if (! $this->disponibilidad->estaDisponible($habitacion->id, $checkIn, $checkOut)) {
+            session()->forget('reserva.pendiente');
+
+            return redirect()
+                ->route('habitaciones.public')
+                ->with('error', 'La habitacion ya no esta disponible para las fechas seleccionadas.');
+        }
+
         $precioPorNoche = (float) $habitacion->tipoHabitacion->precio_base;
         $total = round($precioPorNoche * $noches, 2);
 
@@ -62,23 +88,9 @@ class ReservaController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreReservaRequest $request): RedirectResponse
     {
-        $datos = $request->validate([
-            'check_in' => ['required', 'date', 'after_or_equal:today'],
-            'check_out' => ['required', 'date', 'after:check_in'],
-            'guests' => ['nullable', 'integer', 'min:1'],
-            'habitacion_id' => ['required', 'exists:habitaciones,id'],
-        ]);
-
-        $habitacion = Habitacion::with('tipoHabitacion')->findOrFail($datos['habitacion_id']);
-        $checkIn = Carbon::parse($datos['check_in']);
-        $checkOut = Carbon::parse($datos['check_out']);
-        $noches = $checkIn->diffInDays($checkOut);
-        $precioPorNoche = (float) $habitacion->tipoHabitacion->precio_base;
-        $montoTotal = round($precioPorNoche * $noches, 2);
-
-        abort_unless($this->habitacionDisponible($habitacion->id, $checkIn, $checkOut), 409);
+        $datos = $request->validated();
 
         $usuario = auth()->user();
         $cliente = Cliente::firstOrCreate(
@@ -95,45 +107,20 @@ class ReservaController extends Controller
             $cliente->save();
         }
 
-        $reserva = DB::transaction(function () use ($cliente, $usuario, $datos, $montoTotal, $habitacion, $precioPorNoche) {
-            $reserva = Reserva::create([
-                'cliente_id' => $cliente->id,
-                'user_id' => $usuario->id,
-                'check_in' => $datos['check_in'],
-                'check_out' => $datos['check_out'],
-                'estado' => 'Confirmada',
-                'monto_total' => $montoTotal,
-            ]);
-
-            ReservaHabitacion::create([
-                'reserva_id' => $reserva->id,
-                'habitacion_id' => $habitacion->id,
-                'precio_por_noche' => $precioPorNoche,
-            ]);
-
-            return $reserva;
-        });
+        $this->crearReserva->ejecutar(
+            $cliente->id,
+            (int) $datos['habitacion_id'],
+            $datos['check_in'],
+            $datos['check_out'],
+            (int) ($datos['guests'] ?? 1),
+            $usuario->id,
+        );
 
         session()->forget('reserva.pendiente');
 
         return redirect()->route('home')->with(
             'success',
-            'Tu reservación ha sido confirmada. ¡Nos vemos pronto en NovaStay!'
+            'Tu reservacion ha sido registrada. El hotel confirmara tu llegada.'
         );
-    }
-
-    private function habitacionDisponible(int $habitacionId, Carbon $checkIn, Carbon $checkOut): bool
-    {
-        $reservadas = ReservaHabitacion::where('habitacion_id', $habitacionId)
-            ->whereHas('reserva', function ($query) use ($checkIn, $checkOut) {
-                $query->where('estado', '!=', 'Cancelada')
-                    ->where('check_in', '<', $checkOut->toDateString())
-                    ->where('check_out', '>', $checkIn->toDateString());
-            })
-            ->exists();
-
-        $habitacion = Habitacion::find($habitacionId);
-
-        return ! $reservadas && $habitacion?->estado === 'Disponible';
     }
 }

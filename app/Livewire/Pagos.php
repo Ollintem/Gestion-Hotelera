@@ -10,6 +10,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * Módulo de pagos y estado de cuenta. El componente es el único dueño del
@@ -24,8 +25,10 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Pagos extends Component
 {
+    use WithPagination;
+
     /**
-     * Reservación cuyo estado de cuenta se consulta en el panel.
+     * Reservaci��n cuyo estado de cuenta se consulta en el panel.
      */
     public ?int $reservaSeleccionadaId = null;
 
@@ -54,14 +57,27 @@ class Pagos extends Component
 
     public function mount(): void
     {
+        $solicitada = (int) request()->query('reserva');
+
+        if ($solicitada > 0 && Reserva::whereKey($solicitada)->exists()) {
+            $this->reservaSeleccionadaId = $solicitada;
+
+            return;
+        }
+
         $this->reservaSeleccionadaId = $this->reservaInicial();
     }
 
     public function render(): View
     {
         return view('pagos.index', [
-            'pagos' => Pago::with(['reserva.cliente', 'usuario'])->orderByDesc('id')->get(),
-            'reservas' => Reserva::with('cliente')->orderByDesc('check_in')->orderByDesc('id')->get(),
+            'pagos' => Pago::with(['reserva.cliente', 'usuario'])
+                ->orderByDesc('id')
+                ->paginate(15, ['*'], 'paginaPagos'),
+            'reservas' => Reserva::with('cliente:id,nombre,apellido')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get(['id', 'cliente_id', 'estado']),
             'metodos' => Pago::METODOS,
             'estados' => Pago::ESTADOS,
             'total' => (float) Pago::where('estado', Pago::ESTADO_COMPLETADO)->sum('monto'),
@@ -130,6 +146,10 @@ class Pagos extends Component
      */
     public function crear(): void
     {
+        if (! $this->puede('pagos.crear')) {
+            return;
+        }
+
         $this->resetFormulario();
 
         if ($this->reservaSeleccionadaId !== null) {
@@ -143,6 +163,10 @@ class Pagos extends Component
 
     public function editar(int $id): void
     {
+        if (! $this->puede('pagos.editar')) {
+            return;
+        }
+
         $pago = Pago::findOrFail($id);
 
         $this->resetValidation();
@@ -175,6 +199,12 @@ class Pagos extends Component
      */
     public function guardar(): void
     {
+        $permiso = $this->pagoId === null ? 'pagos.crear' : 'pagos.editar';
+
+        if (! $this->puede($permiso)) {
+            return;
+        }
+
         $this->validate([
             'reserva_id' => ['required', 'exists:reservas,id'],
             'monto' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
@@ -240,6 +270,10 @@ class Pagos extends Component
 
     public function eliminar(int $id): void
     {
+        if (! $this->puede('pagos.eliminar')) {
+            return;
+        }
+
         Pago::findOrFail($id)->delete();
 
         $this->dispatch('notificacion', mensaje: 'Pago eliminado correctamente.');
@@ -278,6 +312,17 @@ class Pagos extends Component
         }
 
         return true;
+    }
+
+    private function puede(string $permiso): bool
+    {
+        if (auth()->user()?->can($permiso)) {
+            return true;
+        }
+
+        $this->dispatch('notificacion', mensaje: 'No tienes permiso para realizar esta accion.');
+
+        return false;
     }
 
     private function resetFormulario(): void

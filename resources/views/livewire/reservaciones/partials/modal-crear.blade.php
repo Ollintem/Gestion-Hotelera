@@ -285,10 +285,10 @@
                         <div>
                             <p class="{{ $etiquetaCampo }}">Estado inicial</p>
                             <div class="relative">
-                                <span class="flex w-full items-center rounded-xl bg-emerald-50 py-2.5 pl-11 pr-3.5 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30">
-                                    Confirmada
+                                <span class="flex w-full items-center rounded-xl bg-amber-50 py-2.5 pl-11 pr-3.5 text-sm font-semibold text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30">
+                                    Pendiente
                                 </span>
-                                <flux:icon.check-circle class="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-emerald-500" />
+                                <flux:icon.clock class="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-amber-500" />
                             </div>
                         </div>
                     </div>

@@ -1119,7 +1119,7 @@ test('a client can confirm a reservation and it is stored with its price details
 
     expect($reserva)->not->toBeNull()
         ->and($reserva->user_id)->toBe($clienteUsuario->id)
-        ->and($reserva->estado)->toBe('Confirmada')
+        ->and($reserva->estado)->toBe('Pendiente')
         ->and($reserva->monto_total)->toBe('4998.00');
 
     expect(ReservaHabitacion::where('reserva_id', $reserva->id)->exists())->toBeTrue();

@@ -80,4 +80,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($pagos->hasPages())
+        <div class="border-t border-slate-100 px-6 py-4 dark:border-zinc-800">
+            {{ $pagos->links() }}
+        </div>
+    @endif
 </div>

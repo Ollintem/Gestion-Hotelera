@@ -18,64 +18,16 @@
     }"
     x-on:eliminar-tarea.window="pendiente = $event.detail"
 >
-    {{-- ======================================================
-         TOAST DE ÉXITO — flotante (top-end), se auto-oculta a los 3 s.
-         Reacciona a `$mensajeExito` vía `@entangle`: cualquier cambio del
-         mensaje vuelve a lanzar el toast sin depender de eventos del backend.
-         ====================================================== --}}
-    @if ($mensajeExito)
-        <div
-            x-data="{
-                visible: false,
-                mensaje: @entangle('mensajeExito'),
-                temporizador: null,
-                init() {
-                    this.$watch('mensaje', (valor) => valor && this.mostrar());
-                    if (this.mensaje) this.mostrar();
-                },
-                mostrar() {
-                    clearTimeout(this.temporizador);
-                    this.visible = true;
-                    this.temporizador = setTimeout(() => this.visible = false, 3000);
-                }
-            }"
-            x-show="visible"
-            x-cloak
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 -translate-y-2"
-            x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 translate-y-0"
-            x-transition:leave-end="opacity-0"
-            role="status"
-            aria-live="polite"
-            class="pointer-events-auto fixed right-4 top-4 z-[100] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-lg shadow-slate-900/10 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100"
-        >
-            <svg class="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-
-            <p class="min-w-0 flex-1 leading-snug">{{ $mensajeExito }}</p>
-
-            <button
-                type="button"
-                x-on:click="visible = false"
-                class="-mr-1 -mt-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
-                aria-label="Cerrar notificación"
-            >
-                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-    @endif
+    {{-- Aviso de éxito temporal. El temporizador de 3 s vive en el mecanismo
+         global de notificaciones. --}}
+    <x-aviso-temporal :mensaje="$mensajeExito" tipo="success" clave="limpieza-exito" />
 
     @include('limpieza.partials.header')
 
     @php
-        $conteoRequiereLimpieza = $tareas->where('estado', 'Pendiente')->count();
-        $conteoEnLimpieza = $tareas->where('estado', 'En Proceso')->count();
-        $conteoListas = $tareas->where('estado', 'Completado')->count();
+        $conteoRequiereLimpieza = (int) ($conteos['Pendiente'] ?? 0);
+        $conteoEnLimpieza = (int) ($conteos['En Proceso'] ?? 0);
+        $conteoListas = (int) ($conteos['Completado'] ?? 0);
     @endphp
 
     {{-- ======================================================
@@ -263,6 +215,12 @@
             </div>
         @endforelse
     </div>
+
+    @if ($tareas->hasPages())
+        <div class="mt-6">
+            {{ $tareas->links() }}
+        </div>
+    @endif
 
     {{-- ======================================================
          DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN

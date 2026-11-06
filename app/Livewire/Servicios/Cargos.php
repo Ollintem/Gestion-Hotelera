@@ -66,6 +66,8 @@ class Cargos extends Component
 
     public function guardar(): void
     {
+        abort_unless(auth()->user()?->can('servicios.cargos'), 403);
+
         $this->validate([
             'reserva_id' => [
                 'required',

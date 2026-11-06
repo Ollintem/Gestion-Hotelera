@@ -1,15 +1,6 @@
 <div>
-    @if ($mensajeExito)
-        <flux:callout variant="success" icon="check-circle" class="mb-4">
-            <p>{{ $mensajeExito }}</p>
-        </flux:callout>
-    @endif
-
-    @if ($mensajeError)
-        <flux:callout variant="danger" icon="exclamation-triangle" class="mb-4">
-            <p>{{ $mensajeError }}</p>
-        </flux:callout>
-    @endif
+    <x-aviso-temporal :mensaje="$mensajeExito" tipo="success" clave="checkin-exito" />
+    <x-aviso-temporal :mensaje="$mensajeError" tipo="error" clave="checkin-error" />
 
     @include('checkin-checkout.partials.header')
 

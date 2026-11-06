@@ -131,6 +131,10 @@ class Servicios extends Component
      */
     public function guardar(): void
     {
+        $permiso = $this->servicioId === null ? 'servicios.crear' : 'servicios.editar';
+
+        abort_unless(auth()->user()?->can($permiso), 403);
+
         $this->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string', 'max:500'],
@@ -170,6 +174,8 @@ class Servicios extends Component
      */
     public function eliminar(int $id): void
     {
+        abort_unless(auth()->user()?->can('servicios.eliminar'), 403);
+
         $servicio = Servicio::findOrFail($id);
 
         if ($servicio->reservasServicio()->exists()) {
@@ -193,6 +199,8 @@ class Servicios extends Component
      */
     public function alternarActivo(int $id): void
     {
+        abort_unless(auth()->user()?->can('servicios.editar'), 403);
+
         $servicio = Servicio::findOrFail($id);
 
         $servicio->update(['activo' => ! $servicio->activo]);

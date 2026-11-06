@@ -41,8 +41,16 @@
     </nav>
 
     @if (session('success'))
-        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-100 border border-emerald-300 text-emerald-900 text-sm font-medium px-5 py-3 rounded-xl shadow-lg">
-            {{ session('success') }}
+        <div
+            data-notificacion
+            data-notificacion-duracion="3000"
+            role="status"
+            class="fixed top-20 left-1/2 z-50 flex -translate-x-1/2 items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-100 px-5 py-3 text-sm font-medium text-emerald-900 shadow-lg transition duration-200"
+        >
+            <span class="flex-1">{{ session('success') }}</span>
+            <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
         </div>
     @endif
 

@@ -120,6 +120,10 @@ class FormModal extends Component
 
     public function guardar(): void
     {
+        $permiso = $this->habitacionId === null ? 'habitaciones.crear' : 'habitaciones.editar';
+
+        abort_unless(auth()->user()?->can($permiso), 403);
+
         $this->validate([
             'numero_habitacion' => ['required', 'string', 'max:10', 'unique:habitaciones,numero_habitacion,'.$this->habitacionId],
             'tipo_habitacion_id' => ['required', 'exists:tipos_habitacion,id'],

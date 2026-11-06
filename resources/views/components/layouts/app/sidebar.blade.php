@@ -23,7 +23,7 @@
 
         {{-- ==========================================================
              NOTIFICACIONES FLOTANTES
-             Mensajes flash de sesión; se ocultan solos a los 5 s.
+             Mensajes flash de sesión; se ocultan solos a los 3 s.
              ========================================================== --}}
 
         <x-flash-messages />

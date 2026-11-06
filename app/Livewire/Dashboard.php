@@ -19,7 +19,8 @@ class Dashboard extends Component
         $habitacionesOcupadas = Habitacion::where('estado', 'Ocupada')->count();
         $reservasActivas = Reserva::whereIn('estado', ['Pendiente', 'Confirmada'])->count();
 
-        $ingresosMes = (float) Pago::whereYear('fecha_pago', now()->year)
+        $ingresosMes = (float) Pago::where('estado', Pago::ESTADO_COMPLETADO)
+            ->whereYear('fecha_pago', now()->year)
             ->whereMonth('fecha_pago', now()->month)
             ->sum('monto');
 

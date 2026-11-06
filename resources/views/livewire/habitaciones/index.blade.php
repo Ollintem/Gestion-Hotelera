@@ -3,22 +3,14 @@
      ====================================================== --}}
 
 <div>
-    {{-- El aviso es de lectura fleeting: Alpine arma un temporizador de tres
-         segundos y avisa al contenedor para que retire el mensaje. El `wire:key`
-         lleva la secuencia del mensaje, no su texto, para que dos avisos
-         seguidos reinicien el temporizador en vez de heredar el del anterior. --}}
-    @if ($mensajeExito)
-        <div
-            wire:key="mensaje-exito-{{ $secuenciaMensaje }}"
-            class="mb-4 animate-fade-in"
-            x-data
-            x-init="setTimeout(() => $dispatch('mensaje-exito-oculto'), 3000)"
-        >
-            <flux:callout variant="success" icon="check-circle">
-                <p>{{ $mensajeExito }}</p>
-            </flux:callout>
-        </div>
-    @endif
+    {{-- El aviso se oculta solo a los 3 s mediante el mecanismo global. La
+         secuencia del mensaje se usa como clave para que dos avisos seguidos
+         vuelvan a montar el bloque aunque repitan el texto. --}}
+    <x-aviso-temporal
+        :mensaje="$mensajeExito"
+        tipo="success"
+        :clave="$secuenciaMensaje"
+    />
 
     <livewire:habitaciones.filtros
         wire:model.live.debounce.400ms="search"

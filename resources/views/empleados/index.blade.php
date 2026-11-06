@@ -1,19 +1,6 @@
 <div>
-    @if ($mensajeExito)
-        <div class="mb-4 animate-fade-in">
-            <flux:callout variant="success" icon="check-circle">
-                <p>{{ $mensajeExito }}</p>
-            </flux:callout>
-        </div>
-    @endif
-
-    @if ($mensajeError)
-        <div class="mb-4 animate-fade-in">
-            <flux:callout variant="danger" icon="x-circle">
-                <p>{{ $mensajeError }}</p>
-            </flux:callout>
-        </div>
-    @endif
+    <x-aviso-temporal :mensaje="$mensajeExito" tipo="success" clave="empleados-exito" />
+    <x-aviso-temporal :mensaje="$mensajeError" tipo="error" clave="empleados-error" />
 
     @include('empleados.partials.header')
 

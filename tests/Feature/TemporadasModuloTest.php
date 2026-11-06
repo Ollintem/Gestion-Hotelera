@@ -382,9 +382,12 @@ test('el formulario ofrece un deslizador de 0.5 a 2.0 con sus etiquetas', functi
 
 test('el aviso flotante se retira solo a los tres segundos', function () {
     $html = Livewire::actingAs($this->admin)->test(Temporadas::class)->html();
+    $js = file_get_contents(resource_path('js/notificaciones.js'));
 
-    expect($html)->toContain('x-on:notificacion.window')
-        ->toContain('setTimeout(() => visible = false, 3000)');
+    expect($html)->not->toContain('x-on:notificacion.window')
+        ->and($js)
+        ->toContain('const DURACION_MS = 3000')
+        ->toContain("window.addEventListener('notificacion', mostrar)");
 });
 
 test('la tarjeta y la fila pintan la demanda con el color que le corresponde', function () {

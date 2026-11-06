@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Habitaciones;
 
+use App\Enums\EstadoReserva;
 use App\Models\Habitacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -59,7 +61,7 @@ class Index extends Component
         [
             'clave' => 'Reservada',
             'etiqueta' => 'Reservadas',
-            'estados' => ['Reservada'],
+            'estados' => [],
             'icono' => 'calendar-days',
             'borde' => 'border-t-amber-400',
             'iconoFondo' => 'bg-amber-50',
@@ -149,6 +151,10 @@ class Index extends Component
      */
     public function eliminar(int $id): void
     {
+        if (! auth()->user()?->can('habitaciones.eliminar')) {
+            return;
+        }
+
         Habitacion::findOrFail($id)->delete();
 
         $this->mostrarMensajeExito('Habitación eliminada correctamente.');
@@ -191,7 +197,13 @@ class Index extends Component
                         ->orWhereHas('tipoHabitacion', fn ($tipo) => $tipo->where('nombre', 'like', $termino));
                 });
             })
-            ->when($this->filtroEstado !== self::FILTRO_TODOS, function ($query): void {
+            ->when($this->filtroEstado !== self::FILTRO_TODOS, function (Builder $query): void {
+                if ($this->filtroEstado === 'Reservada') {
+                    $this->aplicarFiltroReservadas($query);
+
+                    return;
+                }
+
                 $query->whereIn('estado', $this->estadosDelFiltroActual());
             })
             ->orderBy('piso')
@@ -221,10 +233,12 @@ class Index extends Component
             ->pluck('total', 'estado');
 
         $tarjetas = array_map(function (array $opcion) use ($conteos): array {
-            $conteo = array_sum(array_map(
-                fn (string $estado): int => (int) $conteos->get($estado, 0),
-                $opcion['estados'],
-            ));
+            $conteo = $opcion['clave'] === 'Reservada'
+                ? $this->consultaReservadas()->count()
+                : array_sum(array_map(
+                    fn (string $estado): int => (int) $conteos->get($estado, 0),
+                    $opcion['estados'],
+                ));
 
             return [
                 ...$opcion,
@@ -292,6 +306,24 @@ class Index extends Component
     {
         $this->mensajeExito = $mensaje;
         $this->secuenciaMensaje++;
+    }
+
+    private function consultaReservadas(): Builder
+    {
+        return Habitacion::query()->whereHas(
+            'reservas',
+            fn (Builder $reserva): Builder => $reserva
+                ->whereIn('estado', [
+                    EstadoReserva::Pendiente->value,
+                    EstadoReserva::Confirmada->value,
+                ])
+                ->where('reservas.check_out', '>', now()->toDateString()),
+        );
+    }
+
+    private function aplicarFiltroReservadas(Builder $query): void
+    {
+        $query->whereIn('id', $this->consultaReservadas()->select('id'));
     }
 
     /**

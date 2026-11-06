@@ -43,6 +43,8 @@ test('el índice muestra la tabla con todas las columnas de la reservación', fu
 
     $reserva = Reserva::factory()->create([
         'estado' => 'Confirmada',
+        'check_in' => now()->addDays(1),
+        'check_out' => now()->addDays(4),
         'monto_total' => 4500.00,
     ]);
 
@@ -208,16 +210,16 @@ test('guarda la reservación confirmada, calcula el monto y ocupa la habitación
 
     expect($reserva->cliente_id)->toBe($cliente->id)
         ->and($reserva->user_id)->toBe($this->admin->id)
-        ->and($reserva->estado)->toBe('Confirmada')
+        ->and($reserva->estado)->toBe('Pendiente')
         ->and((float) $reserva->monto_total)->toBe(1500.00)
         ->and($reserva->habitacionesAsignadas()->pluck('habitacion_id')->all())->toBe([$habitacion->id]);
 
-    expect($habitacion->fresh()->estado)->toBe('Ocupada');
+    expect($habitacion->fresh()->estado)->toBe('Disponible');
 });
 
-test('rechaza guardar cuando la habitación ya no está disponible', function () {
+test('rechaza guardar cuando la habitacion esta en mantenimiento', function () {
     $tipo = tipoReserva('Simple', 300.00, 1);
-    $habitacion = habitacionReserva('301', $tipo, 'Ocupada');
+    $habitacion = habitacionReserva('301', $tipo, 'Mantenimiento');
     $cliente = Cliente::factory()->create();
 
     Livewire::actingAs($this->admin)
@@ -262,13 +264,17 @@ test('las acciones del menú emiten sus eventos', function () {
     $componente->call('editar', $reserva->id)
         ->assertDispatched('reserva.editar', reservaId: $reserva->id)
         ->call('registrarPago', $reserva->id)
-        ->assertDispatched('reserva.registrar-pago', reservaId: $reserva->id)
-        ->call('checkIn', $reserva->id)
-        ->assertDispatched('reserva.check-in', reservaId: $reserva->id)
-        ->call('checkOut', $reserva->id)
-        ->assertDispatched('reserva.check-out', reservaId: $reserva->id)
-        ->call('cancelarReserva', $reserva->id)
-        ->assertDispatched('reserva.cancelar', reservaId: $reserva->id);
+        ->assertRedirect(route('pagos', ['reserva' => $reserva->id]));
+});
+
+test('cancela una reservacion pendiente desde el listado', function () {
+    $reserva = Reserva::factory()->create(['estado' => 'Pendiente']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('cancelarReserva', $reserva->id);
+
+    expect($reserva->refresh()->estado)->toBe('Cancelada');
 });
 
 test('el modal ofrece el alta rápida de un cliente', function () {

@@ -6,17 +6,8 @@
         </flux:subheading>
     </div>
 
-    @if ($mensajeExito)
-        <flux:callout variant="success" icon="check-circle" class="mb-4">
-            <p>{{ $mensajeExito }}</p>
-        </flux:callout>
-    @endif
-
-    @if ($mensajeError)
-        <flux:callout variant="danger" icon="x-circle" class="mb-4">
-            <p>{{ $mensajeError }}</p>
-        </flux:callout>
-    @endif
+    <x-aviso-temporal :mensaje="$mensajeExito" tipo="success" clave="matriz-exito" />
+    <x-aviso-temporal :mensaje="$mensajeError" tipo="error" clave="matriz-error" />
 
     @if (! $this->puedeEditar())
         <flux:callout variant="warning" icon="lock-closed" class="mb-4">

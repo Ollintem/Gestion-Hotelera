@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\EstadoReserva;
 use App\Models\Habitacion;
 use App\Models\Reserva;
 use Illuminate\Database\Eloquent\Builder;
@@ -114,7 +115,13 @@ class CheckInOut extends Component
     private function llegadasPendientes(): LengthAwarePaginator
     {
         return Reserva::with(['cliente', 'habitaciones'])
-            ->where('estado', 'Pendiente')
+            ->where(function (Builder $query): void {
+                $query->where('estado', EstadoReserva::Pendiente->value)
+                    ->orWhere(function (Builder $legado): void {
+                        $legado->where('estado', EstadoReserva::Confirmada->value)
+                            ->whereNull('fecha_hora_checkin');
+                    });
+            })
             ->tap(fn ($query) => $this->aplicarBusqueda($query))
             ->when($this->filtroFecha !== '', fn ($query) => $query->whereDate('check_in', $this->filtroFecha))
             ->when($this->filtroHabitacion !== '', fn ($query) => $query->whereHas(
@@ -135,7 +142,8 @@ class CheckInOut extends Component
     private function salidasPendientes(): LengthAwarePaginator
     {
         return Reserva::with(['cliente', 'habitaciones'])
-            ->where('estado', 'Confirmada')
+            ->where('estado', EstadoReserva::Confirmada->value)
+            ->whereNotNull('fecha_hora_checkin')
             ->tap(fn ($query) => $this->aplicarBusqueda($query))
             ->when($this->filtroFecha !== '', fn ($query) => $query->whereDate('check_out', $this->filtroFecha))
             ->when($this->filtroHabitacion !== '', fn ($query) => $query->whereHas(
@@ -224,8 +232,8 @@ class CheckInOut extends Component
 
         $reserva = $this->reservaSeleccionada();
 
-        if ($reserva === null || $reserva->estado !== 'Pendiente') {
-            $this->mensajeError = 'La reservación ya no admite check-in. Actualiza la pantalla e inténtalo de nuevo.';
+        if ($reserva === null || ! $reserva->puedeHacerCheckIn()) {
+            $this->mensajeError = 'La reservaci��n ya no admite check-in. Actualiza la pantalla e intǸntalo de nuevo.';
 
             return;
         }
@@ -251,8 +259,8 @@ class CheckInOut extends Component
 
         $reserva = $this->reservaSeleccionada();
 
-        if ($reserva === null || $reserva->estado !== 'Confirmada') {
-            $this->mensajeError = 'La reservación no está en estadía, por lo que no admite check-out. Actualiza la pantalla.';
+        if ($reserva === null || ! $reserva->puedeHacerCheckOut()) {
+            $this->mensajeError = 'La reservaci��n no estǭ en estad��a, por lo que no admite check-out. Actualiza la pantalla.';
 
             return;
         }
@@ -288,18 +296,12 @@ class CheckInOut extends Component
 
         $reserva = Reserva::with('habitaciones')->findOrFail($id);
 
-        if ($reserva->estado !== 'Pendiente') {
+        if (! $reserva->cancelar()) {
             $this->mensajeError = 'Solo se pueden cancelar reservaciones pendientes. La reserva #'.$reserva->id
                 .' ya tiene al huésped en el hotel.';
             $this->mensajeExito = null;
 
             return;
-        }
-
-        $reserva->update(['estado' => 'Cancelada']);
-
-        foreach ($reserva->habitaciones as $habitacion) {
-            $habitacion->update(['estado' => 'Disponible']);
         }
 
         $this->mensajeExito = 'Reservación #'.$reserva->id.' cancelada correctamente.';
@@ -343,6 +345,8 @@ class CheckInOut extends Component
             'cliente',
             'habitaciones',
             'habitacionesAsignadas.habitacion',
+            'serviciosAsignados',
+            'pagos',
             'usuarioCheckIn',
         ])->find($this->reservaSeleccionadaId);
     }
@@ -351,7 +355,7 @@ class CheckInOut extends Component
     {
         $reserva = Reserva::findOrFail($id);
 
-        if ($accion === 'checkin' && $reserva->estado !== 'Pendiente') {
+        if ($accion === 'checkin' && ! $reserva->puedeHacerCheckIn()) {
             $this->mensajeError = 'La reserva #'.$reserva->id
                 .' ya tiene registrado su check-in. Actualiza la pantalla e inténtalo de nuevo.';
             $this->mensajeExito = null;
@@ -359,7 +363,7 @@ class CheckInOut extends Component
             return;
         }
 
-        if ($accion === 'checkout' && $reserva->estado !== 'Confirmada') {
+        if ($accion === 'checkout' && ! $reserva->puedeHacerCheckOut()) {
             $this->mensajeError = 'La reserva #'.$reserva->id
                 .' no está en estadía, por lo que no admite check-out. Actualiza la pantalla.';
             $this->mensajeExito = null;

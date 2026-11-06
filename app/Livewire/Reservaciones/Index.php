@@ -2,14 +2,16 @@
 
 namespace App\Livewire\Reservaciones;
 
+use App\Enums\EstadoHabitacion;
+use App\Enums\EstadoReserva;
 use App\Models\Cliente;
 use App\Models\Habitacion;
 use App\Models\Reserva;
-use App\Models\ReservaHabitacion;
+use App\Services\Habitaciones\DisponibilidadHabitaciones;
+use App\Services\Reservaciones\CrearReserva;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -33,19 +35,20 @@ class Index extends Component
     public const POR_PAGINA = 10;
 
     /**
-     * Estado de la habitación que puede reservarse.
+     * Estado de la habitacion que puede reservarse.
      */
-    public const ESTADO_DISPONIBLE = 'Disponible';
+    public const ESTADO_DISPONIBLE = EstadoHabitacion::Disponible->value;
 
     /**
-     * Estado que toma la habitación al quedar reservada.
+     * Estado que toma la habitacion al registrar la llegada del huesped.
      */
-    public const ESTADO_OCUPADA = 'Ocupada';
+    public const ESTADO_OCUPADA = EstadoHabitacion::Ocupada->value;
 
     /**
-     * Estado con el que nace una reservación capturada desde recepción.
+     * Toda reservacion nueva nace pendiente de check-in. La confirmacion ocurre
+     * cuando recepcion registra la llegada, no al capturar la reserva.
      */
-    public const ESTADO_CONFIRMADA = 'Confirmada';
+    public const ESTADO_PENDIENTE = EstadoReserva::Pendiente->value;
 
     public bool $showModalCrear = false;
 
@@ -61,6 +64,8 @@ class Index extends Component
 
     public ?string $mensajeExito = null;
 
+    public ?string $mensajeError = null;
+
     public string $nuevoClienteNombre = '';
 
     public string $nuevoClienteEmail = '';
@@ -69,7 +74,13 @@ class Index extends Component
 
     public function render(): View
     {
-        $reservas = Reserva::with(['cliente', 'habitaciones.tipoHabitacion', 'pagos'])
+        $reservas = Reserva::with([
+            'cliente',
+            'habitaciones.tipoHabitacion',
+            'habitacionesAsignadas',
+            'serviciosAsignados',
+            'pagos',
+        ])
             ->latest()
             ->paginate(self::POR_PAGINA);
 
@@ -116,6 +127,12 @@ class Index extends Component
      */
     public function guardarClienteYSeleccionar(): void
     {
+        if (! auth()->user()?->can('clientes.crear')) {
+            $this->addError('nuevoClienteNombre', 'No tienes permiso para crear clientes.');
+
+            return;
+        }
+
         $datos = $this->validate([
             'nuevoClienteNombre' => ['required', 'string', 'max:100'],
             'nuevoClienteEmail' => ['nullable', 'email', 'max:255'],
@@ -155,12 +172,15 @@ class Index extends Component
      */
     public function guardarReserva(): void
     {
+        if (! auth()->user()?->can('reservaciones.crear')) {
+            $this->addError('cliente_id', 'No tienes permiso para crear reservaciones.');
+
+            return;
+        }
+
         $datos = $this->validate([
             'cliente_id' => ['required', 'exists:clientes,id'],
-            'habitacion_id' => [
-                'required',
-                Rule::exists('habitaciones', 'id')->where('estado', self::ESTADO_DISPONIBLE),
-            ],
+            'habitacion_id' => ['required', 'exists:habitaciones,id'],
             'check_in' => ['required', 'date', 'after_or_equal:today'],
             'check_out' => ['required', 'date', 'after:check_in'],
             'num_huespedes' => ['required', 'integer', 'min:1'],
@@ -178,41 +198,22 @@ class Index extends Component
             'num_huespedes.min' => 'Debe haber al menos un huésped.',
         ]);
 
-        $habitacion = Habitacion::with('tipoHabitacion')->findOrFail($datos['habitacion_id']);
-
-        $capacidad = (int) ($habitacion->tipoHabitacion?->capacidad ?? 0);
-
-        if ($capacidad > 0 && (int) $datos['num_huespedes'] > $capacidad) {
-            $this->addError('num_huespedes', "La habitación admite hasta {$capacidad} huéspedes.");
+        try {
+            app(CrearReserva::class)->ejecutar(
+                (int) $datos['cliente_id'],
+                (int) $datos['habitacion_id'],
+                $datos['check_in'],
+                $datos['check_out'],
+                (int) $datos['num_huespedes'],
+                auth()->id(),
+            );
+        } catch (ValidationException $excepcion) {
+            foreach ($excepcion->errors() as $campo => $mensajes) {
+                $this->addError($campo, $mensajes[0]);
+            }
 
             return;
         }
-
-        $checkIn = Carbon::parse($datos['check_in'])->startOfDay();
-        $checkOut = Carbon::parse($datos['check_out'])->startOfDay();
-
-        $noches = (int) $checkIn->diffInDays($checkOut);
-        $precioPorNoche = (float) ($habitacion->tipoHabitacion?->precio_base ?? 0);
-        $montoTotal = round($precioPorNoche * $noches, 2);
-
-        DB::transaction(function () use ($habitacion, $datos, $checkIn, $checkOut, $precioPorNoche, $montoTotal): void {
-            $reserva = Reserva::create([
-                'cliente_id' => (int) $datos['cliente_id'],
-                'user_id' => auth()->id(),
-                'check_in' => $checkIn->toDateString(),
-                'check_out' => $checkOut->toDateString(),
-                'estado' => self::ESTADO_CONFIRMADA,
-                'monto_total' => $montoTotal,
-            ]);
-
-            ReservaHabitacion::create([
-                'reserva_id' => $reserva->id,
-                'habitacion_id' => $habitacion->id,
-                'precio_por_noche' => $precioPorNoche,
-            ]);
-
-            $habitacion->update(['estado' => self::ESTADO_OCUPADA]);
-        });
 
         $this->cerrarModalCrear();
         $this->resetPage();
@@ -235,6 +236,7 @@ class Index extends Component
     public function registrarPago(int $id): void
     {
         $this->dispatch('reserva.registrar-pago', reservaId: $id);
+        $this->redirect(route('pagos', ['reserva' => $id]), navigate: true);
     }
 
     /**
@@ -242,7 +244,24 @@ class Index extends Component
      */
     public function checkIn(int $id): void
     {
-        $this->dispatch('reserva.check-in', reservaId: $id);
+        if (! auth()->user()?->can('checkin_checkout.crear')) {
+            $this->mensajeError = 'No tienes permiso para registrar el check-in.';
+
+            return;
+        }
+
+        $reserva = Reserva::findOrFail($id);
+
+        if (! $reserva->puedeHacerCheckIn()) {
+            $this->mensajeError = 'La reserva #'.$reserva->id.' ya no admite check-in.';
+
+            return;
+        }
+
+        $reserva->realizarCheckIn();
+
+        $this->mensajeError = null;
+        $this->mensajeExito = 'Check-in registrado correctamente para la reserva #'.$reserva->id.'.';
     }
 
     /**
@@ -250,7 +269,31 @@ class Index extends Component
      */
     public function checkOut(int $id): void
     {
-        $this->dispatch('reserva.check-out', reservaId: $id);
+        if (! auth()->user()?->can('checkin_checkout.crear')) {
+            $this->mensajeError = 'No tienes permiso para registrar el check-out.';
+
+            return;
+        }
+
+        $reserva = Reserva::findOrFail($id);
+
+        if ($reserva->puedeHacerCheckOut() && ! $reserva->estaPagada()) {
+            $this->mensajeError = 'No se puede registrar el check-out: la reserva #'.$reserva->id
+                .' tiene un saldo pendiente de $'.number_format($reserva->saldoPendiente(), 2).'.';
+
+            return;
+        }
+
+        if (! $reserva->puedeHacerCheckOut()) {
+            $this->mensajeError = 'La reserva #'.$reserva->id.' no se encuentra en estadia.';
+
+            return;
+        }
+
+        $reserva->realizarCheckOut();
+
+        $this->mensajeError = null;
+        $this->mensajeExito = 'Check-out registrado correctamente para la reserva #'.$reserva->id.'.';
     }
 
     /**
@@ -258,7 +301,22 @@ class Index extends Component
      */
     public function cancelarReserva(int $id): void
     {
-        $this->dispatch('reserva.cancelar', reservaId: $id);
+        if (! auth()->user()?->can('reservaciones.editar')) {
+            $this->mensajeError = 'No tienes permiso para cancelar reservaciones.';
+
+            return;
+        }
+
+        $reserva = Reserva::findOrFail($id);
+
+        if (! $reserva->cancelar()) {
+            $this->mensajeError = 'Solo se pueden cancelar reservaciones pendientes.';
+
+            return;
+        }
+
+        $this->mensajeError = null;
+        $this->mensajeExito = 'Reservacion #'.$reserva->id.' cancelada correctamente.';
     }
 
     /**
@@ -280,9 +338,26 @@ class Index extends Component
     #[Computed]
     public function habitacionesDisponibles(): Collection
     {
-        return Habitacion::with('tipoHabitacion')
-            ->where('estado', self::ESTADO_DISPONIBLE)
-            ->orderBy('numero_habitacion')
+        if ($this->check_in === '' || $this->check_out === '') {
+            return Habitacion::with('tipoHabitacion')
+                ->where('estado', self::ESTADO_DISPONIBLE)
+                ->orderBy('numero_habitacion')
+                ->get();
+        }
+
+        try {
+            $checkIn = Carbon::parse($this->check_in);
+            $checkOut = Carbon::parse($this->check_out);
+        } catch (\Throwable) {
+            return collect();
+        }
+
+        if ($checkOut->lessThanOrEqualTo($checkIn)) {
+            return collect();
+        }
+
+        return app(DisponibilidadHabitaciones::class)
+            ->consulta($checkIn, $checkOut, max(1, $this->num_huespedes))
             ->get();
     }
 
@@ -350,7 +425,7 @@ class Index extends Component
      */
     public function totalPagado(Reserva $reserva): float
     {
-        return round((float) $reserva->pagos->sum('monto'), 2);
+        return $reserva->totalPagado();
     }
 
     /**
@@ -358,6 +433,6 @@ class Index extends Component
      */
     public function estaPagada(Reserva $reserva): bool
     {
-        return $this->totalPagado($reserva) + 0.001 >= (float) $reserva->monto_total;
+        return $reserva->estaPagada();
     }
 }

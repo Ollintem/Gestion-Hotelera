@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoHabitacion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -37,6 +38,19 @@ class Habitacion extends Model
      * @var list<string>
      */
     public const ESTADOS = ['Disponible', 'Ocupada', 'Mantenimiento', 'Limpieza'];
+
+    public const ESTADO_DISPONIBLE = 'Disponible';
+
+    public const ESTADO_OCUPADA = 'Ocupada';
+
+    public const ESTADO_MANTENIMIENTO = 'Mantenimiento';
+
+    public const ESTADO_LIMPIEZA = 'Limpieza';
+
+    public function estadoEnum(): EstadoHabitacion
+    {
+        return EstadoHabitacion::from($this->estado);
+    }
 
     /**
      * Fotografías de muestra para las habitaciones sin imagen propia. La imagen

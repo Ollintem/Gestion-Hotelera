@@ -264,11 +264,11 @@ test('un permiso denegado no deja mensaje de éxito', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Duración de las notificaciones (5000 ms)
+| Duración de las notificaciones (3000 ms)
 |--------------------------------------------------------------------------
 */
 
-test('la notificación al guardar la información del hotel se oculta exactamente a los 5000 ms', function () {
+test('la notificación al guardar la información del hotel se oculta exactamente a los 3000 ms', function () {
     Livewire::actingAs($this->admin)
         ->test(Configuracion::class)
         ->call('editarHotel')
@@ -276,10 +276,10 @@ test('la notificación al guardar la información del hotel se oculta exactament
         ->call('guardarHotel')
         ->assertSet('mensajeExito', 'Información del hotel actualizada correctamente.')
         ->assertSee('Información del hotel actualizada correctamente.')
-        ->assertSee('this.temporizador = setTimeout(() => { this.visible = false }, 5000)', false);
+        ->assertSee('data-notificacion-duracion="3000"', false);
 });
 
-test('la notificación de error por permiso denegado también se oculta a los 5000 ms', function () {
+test('la notificación de error por permiso denegado también se oculta a los 3000 ms', function () {
     $sinPermiso = User::factory()->create();
     $sinPermiso->assignRole('recepcionista');
 
@@ -288,5 +288,5 @@ test('la notificación de error por permiso denegado también se oculta a los 50
         ->call('guardarHotel')
         ->assertSet('mensajeError', 'No tienes permiso para modificar la configuración del hotel.')
         ->assertSee('No tienes permiso para modificar la configuración del hotel.')
-        ->assertSee('this.temporizador = setTimeout(() => { this.visible = false }, 5000)', false);
+        ->assertSee('data-notificacion-duracion="3000"', false);
 });

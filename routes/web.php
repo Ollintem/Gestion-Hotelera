@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EstadoCuentaController;
+use App\Http\Controllers\ReportesPdfController;
 use App\Http\Controllers\ReservaController;
 use App\Http\Controllers\RoomSearchController;
 use App\Http\Controllers\UsuarioController;
@@ -47,23 +48,23 @@ Route::middleware(['auth'])->group(function () {
 require __DIR__.'/auth.php';
 
 Route::get('/usuarios', [UsuarioController::class, 'index'])
-    ->middleware('permission:usuarios.ver')
+    ->middleware(['auth', 'permission:usuarios.ver'])
     ->name('usuarios.index');
 
 Route::get('/usuarios/create', [UsuarioController::class, 'create'])
-    ->middleware('permission:usuarios.crear')
+    ->middleware(['auth', 'permission:usuarios.crear'])
     ->name('usuarios.create');
 
 Route::post('/usuarios', [UsuarioController::class, 'store'])
-    ->middleware('permission:usuarios.crear')
+    ->middleware(['auth', 'permission:usuarios.crear'])
     ->name('usuarios.store');
 
 Route::get('/usuarios/{usuario}/edit', [UsuarioController::class, 'edit'])
-    ->middleware('permission:usuarios.editar')
+    ->middleware(['auth', 'permission:usuarios.editar'])
     ->name('usuarios.edit');
 
 Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update'])
-    ->middleware('permission:usuarios.editar')
+    ->middleware(['auth', 'permission:usuarios.editar'])
     ->name('usuarios.update');
 
 Route::middleware(['auth'])->group(function () {
@@ -114,6 +115,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reportes', Reportes::class)
         ->middleware('permission:reportes.ver')
         ->name('reportes');
+
+    Route::get('/reportes/pdf', [ReportesPdfController::class, 'descargar'])
+        ->middleware('permission:reportes.ver')
+        ->name('reportes.pdf');
 
     Route::get('/configuracion', Configuracion::class)
         ->middleware('permission:configuracion.ver')

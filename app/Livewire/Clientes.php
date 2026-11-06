@@ -135,6 +135,15 @@ class Clientes extends Component
 
     public function guardar(): void
     {
+        $permiso = $this->clienteId === null ? 'clientes.crear' : 'clientes.editar';
+
+        if (! auth()->user()?->can($permiso)) {
+            $this->mensajeError = 'No tienes permiso para guardar clientes.';
+            $this->mensajeExito = null;
+
+            return;
+        }
+
         $this->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
@@ -169,6 +178,13 @@ class Clientes extends Component
 
     public function eliminar(int $id): void
     {
+        if (! auth()->user()?->can('clientes.eliminar')) {
+            $this->mensajeError = 'No tienes permiso para eliminar clientes.';
+            $this->mensajeExito = null;
+
+            return;
+        }
+
         $cliente = Cliente::withCount('reservas')->findOrFail($id);
 
         if (($cliente->reservas_count ?? 0) > 0) {

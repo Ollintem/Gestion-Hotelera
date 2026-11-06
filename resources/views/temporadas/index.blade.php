@@ -19,53 +19,9 @@
     x-data="{ abierto: @entangle('modalAbierto'), pagina: @entangle('pagina') }"
     x-on:keydown.escape.window="abierto = false; $wire.cerrarModal()"
 >
-    {{-- ======================================================
-         AVISO FLOTANTE
-
-         El alta, la edición, el borrado y el cambio de estado emiten el mismo
-         evento `notificacion`, así que un único aviso los cubre a todos. Lo pinta
-         Alpine escuchando el evento en lugar de leer una propiedad del
-         componente: aparece en el mismo clic que lo emitió, sin esperar un morph,
-         y el temporizador de 3 s lo retira solo.
-
-         En móvil el ancho es completo y baja al borde superior, porque un aviso
-         pegado a la esquina queda fuera del alcance del pulgar.
-         ====================================================== --}}
-
-    <div
-        x-data="{ visible: false, mensaje: '', temporizador: null }"
-        x-on:notificacion.window="visible = true; mensaje = $event.detail.mensaje; clearTimeout(temporizador); temporizador = setTimeout(() => visible = false, 3000)"
-        x-show="visible"
-        x-cloak
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 -translate-y-2 scale-95"
-        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-        x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
-        class="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-lg shadow-emerald-900/5 sm:inset-x-auto sm:right-4"
-        role="status"
-        aria-live="polite"
-    >
-        <span class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5" aria-hidden="true">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-            </svg>
-        </span>
-
-        <span x-text="mensaje" class="flex-1 text-sm font-semibold text-emerald-900"></span>
-
-        <button
-            type="button"
-            x-on:click="visible = false"
-            class="-mr-1 shrink-0 rounded-lg p-1 text-emerald-500 transition-colors duration-200 hover:bg-emerald-100 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-1"
-            aria-label="Cerrar notificación"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4" aria-hidden="true">
-                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
-        </button>
-    </div>
+    {{-- El alta, la edición, el borrado y el cambio de estado emiten el mismo
+         evento `notificacion`, que el mecanismo global convierte en un aviso
+         flotante de 3 s. --}}
 
     {{-- ======================================================
          CABECERA
