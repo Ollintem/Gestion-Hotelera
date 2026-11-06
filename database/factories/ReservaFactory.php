@@ -26,6 +26,7 @@ class ReservaFactory extends Factory
             'check_out' => (clone $checkIn)->modify('+'.fake()->numberBetween(1, 5).' days'),
             'estado' => 'Pendiente',
             'monto_total' => fake()->randomFloat(2, 1000, 15000),
+            'num_huespedes' => fake()->numberBetween(1, 4),
         ];
     }
 

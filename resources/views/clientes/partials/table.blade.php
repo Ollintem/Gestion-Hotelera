@@ -3,6 +3,7 @@
      ====================================================== --}}
 
 <flux:card>
+    <div class="overflow-x-auto">
     <flux:table>
         <flux:table.columns>
             <flux:table.column class="!text-slate-700 !font-semibold uppercase !text-xs tracking-wider">Nombre</flux:table.column>
@@ -39,4 +40,5 @@
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 </flux:card>

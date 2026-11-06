@@ -8,6 +8,8 @@
 </head>
 <body class="bg-slate-50 font-sans antialiased text-slate-800">
 
+    <x-flash-messages />
+
     <!-- Navbar -->
     <nav class="border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
@@ -44,19 +46,19 @@
             <p class="text-slate-500 text-sm">Revisa el detalle de tu estancia y confirma la reserva para asegurar tu habitación.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-5">
             <!-- Detalle de la habitación -->
-            <div class="md:col-span-3 bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:col-span-3">
                 <div class="relative h-48 bg-slate-200">
                     <img src="{{ $habitacion->imagen() }}" alt="{{ $habitacion->tipoHabitacion->nombre }}" class="w-full h-full object-cover">
                     <div class="absolute top-4 left-4 bg-white text-slate-700 text-xs font-bold px-3 py-1 rounded-md shadow-sm">Habitación #{{ $habitacion->numero_habitacion }}</div>
                 </div>
                 <div class="p-6">
-                    <h2 class="text-xl font-bold text-slate-900 mb-1">{{ $habitacion->tipoHabitacion->nombre }}</h2>
-                    <p class="text-sm text-slate-500 mb-4">Piso {{ $habitacion->piso }} &middot; hasta {{ $habitacion->tipoHabitacion->capacidad }} personas</p>
-                    <p class="text-sm text-slate-600 leading-relaxed">{{ $habitacion->tipoHabitacion->descripcion }}</p>
+                    <h2 class="mb-1 break-words text-xl font-bold text-slate-900">{{ $habitacion->tipoHabitacion->nombre }}</h2>
+                    <p class="mb-4 text-sm text-slate-500">Piso {{ $habitacion->piso }} &middot; hasta {{ $habitacion->tipoHabitacion->capacidad }} personas</p>
+                    <p class="break-words text-sm leading-relaxed text-slate-600">{{ $habitacion->tipoHabitacion->descripcion }}</p>
 
-                    <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
+                    <div class="mt-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                         <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
                             <p class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Check-in</p>
                             <p class="font-semibold text-slate-800">{{ $checkIn->format('d/m/Y') }}</p>
@@ -96,20 +98,6 @@
                             <span class="text-2xl font-bold text-amber-600">${{ number_format($total, 2) }}</span>
                         </div>
                     </div>
-
-                    @if(session('error'))
-                        <div
-                            data-notificacion
-                            data-notificacion-duracion="3000"
-                            role="alert"
-                            class="mt-4 flex items-start gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 transition duration-200"
-                        >
-                            <span class="flex-1">{{ session('error') }}</span>
-                            <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
-                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                    @endif
 
                     @if ($errors->any())
                         <div class="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -8,6 +8,8 @@
 </head>
 <body class="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen flex">
 
+    <x-flash-messages />
+
     <!-- Columna Izquierda (Formulario) -->
     <div class="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 md:p-12">
 

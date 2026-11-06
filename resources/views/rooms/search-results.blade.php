@@ -8,6 +8,8 @@
 </head>
 <body class="bg-slate-50 font-sans antialiased text-slate-800">
 
+    <x-flash-messages />
+
     <!-- Navbar -->
     <nav class="border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
@@ -80,20 +82,6 @@
             </form>
         </div>
 
-        @if (session('error'))
-            <div
-                data-notificacion
-                data-notificacion-duracion="3000"
-                role="alert"
-                class="mb-6 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 transition duration-200"
-            >
-                <span class="flex-1">{{ session('error') }}</span>
-                <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
-                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-        @endif
-
         @if ($habitaciones->isEmpty())
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
                 <h2 class="text-xl font-bold text-slate-900 mb-2">Sin habitaciones disponibles</h2>
@@ -114,18 +102,18 @@
                             <div class="absolute top-4 right-4 bg-white text-slate-700 text-xs font-bold px-3 py-1 rounded-md shadow-sm">#{{ $habitacion->numero_habitacion }}</div>
                         </div>
                         <div class="p-5 flex flex-col flex-grow">
-                            <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <h3 class="text-lg font-bold text-slate-900">{{ $habitacion->tipoHabitacion->nombre }}</h3>
+                            <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <h3 class="break-words text-lg font-bold text-slate-900">{{ $habitacion->tipoHabitacion->nombre }}</h3>
                                     <p class="text-xs text-slate-500">Piso {{ $habitacion->piso }} &middot; hasta {{ $habitacion->tipoHabitacion->capacidad }} personas</p>
                                 </div>
-                                <div class="text-right">
+                                <div class="shrink-0 sm:text-right">
                                     <span class="text-xl font-bold text-amber-600">${{ number_format((float) $habitacion->tipoHabitacion->precio_base, 2) }}</span>
                                     <p class="text-[10px] text-slate-400 uppercase">por noche</p>
                                 </div>
                             </div>
                             <p class="text-sm text-slate-600 mb-4 line-clamp-3">{{ $habitacion->tipoHabitacion->descripcion }}</p>
-                            <div class="mt-auto flex items-center justify-between gap-3">
+                            <div class="mt-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="text-sm text-slate-500">
                                     <span class="font-semibold text-slate-700">${{ number_format($total, 2) }}</span>
                                     <p class="text-[10px] text-slate-400 uppercase">{{ $noches }} {{ $noches === 1 ? 'noche' : 'noches' }}</p>
@@ -138,7 +126,7 @@
                                     <input type="hidden" name="guests" value="{{ $guests ?? 1 }}">
                                     <input type="hidden" name="accion" value="login">
                                     @auth
-                                        <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition shadow-md">
+                                        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition shadow-md sm:w-auto">
                                             Reservar ahora
                                         </button>
                                     @else

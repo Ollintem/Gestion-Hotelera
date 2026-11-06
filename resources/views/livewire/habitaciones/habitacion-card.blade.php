@@ -27,12 +27,12 @@
             'sm:bg-gradient-to-r' => $esLista,
         ])></div>
 
-        <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/60 {{ $this->clasesTextoEstado($habitacion->estado) }}">
-            <span class="size-1.5 rounded-full {{ $this->clasesPuntoEstado($habitacion->estado) }}"></span>
-            {{ $this->etiquetaEstado($habitacion->estado) }}
+        <span class="absolute left-3 top-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 truncate rounded-full border border-white/40 bg-white/70 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/60 {{ $this->clasesTextoEstado($habitacion->estado) }}">
+            <span class="size-1.5 shrink-0 rounded-full {{ $this->clasesPuntoEstado($habitacion->estado) }}"></span>
+            <span class="truncate">{{ $this->etiquetaEstado($habitacion->estado) }}</span>
         </span>
 
-        <span class="absolute bottom-2.5 right-4 font-serif text-3xl font-bold italic leading-none text-white drop-shadow-lg">
+        <span class="absolute bottom-2.5 right-4 max-w-[45%] truncate font-serif text-3xl font-bold italic leading-none text-white drop-shadow-lg">
             #{{ $habitacion->numero_habitacion }}
         </span>
     </div>
@@ -42,13 +42,13 @@
         'gap-4 p-5 lg:flex-row lg:items-center lg:justify-between' => $esLista,
         'p-5' => ! $esLista,
     ])>
-        <div>
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ $habitacion->tipoHabitacion?->nombre ?? '—' }}</h3>
+        <div class="min-w-0">
+            <h3 class="line-clamp-2 break-words text-lg font-bold text-slate-900 dark:text-white">{{ $habitacion->tipoHabitacion?->nombre ?? '—' }}</h3>
             <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                 Piso {{ $habitacion->piso }} &middot; {{ $habitacion->tipoHabitacion?->capacidad ?? '—' }} personas
             </p>
 
-            <div class="mt-3 flex items-center gap-4">
+            <div class="mt-3 flex flex-wrap items-center gap-4">
                 <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400">
                     <span class="size-2 rounded-full {{ $this->clasesPuntoEstado($habitacion->estado) }}"></span>
                     {{ $this->etiquetaLimpieza($habitacion->estado) }}
@@ -67,7 +67,7 @@
     </div>
 
     <div @class([
-        'flex items-center justify-between gap-6',
+        'flex flex-wrap items-center justify-between gap-3 sm:gap-6',
         'border-t border-slate-100 px-5 py-4 dark:border-zinc-700' => $esLista,
         'border-t border-slate-100 pt-4 dark:border-zinc-700' => ! $esLista,
     ])>
@@ -79,7 +79,7 @@
                 <span class="text-sm font-medium text-slate-400 dark:text-zinc-500">/noche</span>
             </div>
         @else
-            <span class="text-xs text-slate-400 dark:text-zinc-500">
+            <span class="line-clamp-2 min-w-0 flex-1 text-xs text-slate-400 dark:text-zinc-500">
                 {{ $habitacion->tipoHabitacion?->descripcion ?? 'Sin descripción' }}
             </span>
         @endif

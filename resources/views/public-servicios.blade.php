@@ -8,6 +8,8 @@
 </head>
 <body class="bg-slate-50 font-sans antialiased pt-24">
 
+    <x-flash-messages />
+
     <!-- ==========================================
          1. BARRA DE NAVEGACIÓN
          ========================================== -->

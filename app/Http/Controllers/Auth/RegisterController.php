@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
@@ -37,28 +38,47 @@ class RegisterController extends Controller implements HasMiddleware
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $usuario = User::create([
-            'name' => $datos['name'],
-            'email' => $datos['email'],
-            'password' => Hash::make($datos['password']),
-            'activo' => true,
-        ]);
+        $usuario = DB::transaction(function () use ($datos): User {
+            $usuario = User::create([
+                'name' => $datos['name'],
+                'email' => $datos['email'],
+                'password' => Hash::make($datos['password']),
+                'activo' => true,
+            ]);
 
-        $rol = Role::firstOrCreate([
-            'name' => 'cliente',
-            'guard_name' => 'web',
-        ]);
-        $usuario->assignRole($rol);
+            $rol = Role::firstOrCreate([
+                'name' => 'cliente',
+                'guard_name' => 'web',
+            ]);
+            $usuario->assignRole($rol);
 
-        $partes = preg_split('/\s+/', trim($datos['name']), 2);
+            $partes = preg_split('/\s+/', trim($datos['name']), 2);
 
-        Cliente::create([
-            'user_id' => $usuario->id,
-            'nombre' => $partes[0],
-            'apellido' => $partes[1] ?? '',
-            'email' => $datos['email'],
-            'telefono' => $datos['telefono'] ?? null,
-        ]);
+            // Si recepción ya había registrado al huésped sin cuenta, se
+            // reutiliza esa ficha en lugar de duplicarla en `clientes`.
+            $cliente = Cliente::where('email', $datos['email'])
+                ->whereNull('user_id')
+                ->first();
+
+            if ($cliente) {
+                $cliente->update([
+                    'user_id' => $usuario->id,
+                    'nombre' => $partes[0],
+                    'apellido' => $partes[1] ?? '',
+                    'telefono' => $datos['telefono'] ?? $cliente->telefono,
+                ]);
+            } else {
+                Cliente::create([
+                    'user_id' => $usuario->id,
+                    'nombre' => $partes[0],
+                    'apellido' => $partes[1] ?? '',
+                    'email' => $datos['email'],
+                    'telefono' => $datos['telefono'] ?? null,
+                ]);
+            }
+
+            return $usuario;
+        });
 
         Auth::login($usuario);
 
@@ -66,6 +86,6 @@ class RegisterController extends Controller implements HasMiddleware
             return redirect()->route('reserva.confirmar');
         }
 
-        return redirect()->route('home');
+        return redirect()->route('mis-reservaciones');
     }
 }

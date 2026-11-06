@@ -13,13 +13,14 @@
     </div>
 
     <div class="overflow-x-auto">
-        <table class="w-full min-w-[1180px] text-left text-sm">
+        <table class="w-full min-w-[1320px] text-left text-sm">
             <thead>
                 <tr class="border-b border-slate-100 bg-slate-50/80 dark:border-slate-700/60 dark:bg-slate-800/80">
                     <th scope="col" class="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Nombre</th>
                     <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Apellidos</th>
+                    <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Puesto</th>
                     <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Teléfono</th>
-                    <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Rol del Sistema</th>
+                    <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Rol de acceso</th>
                     <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Salario</th>
                     <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Turno</th>
                     <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Correo electrónico</th>
@@ -45,14 +46,28 @@
                             </div>
                         </td>
                         <td class="whitespace-nowrap px-4 py-4 text-slate-700 dark:text-slate-300">{{ $empleado->apellidos }}</td>
+                        <td class="whitespace-nowrap px-4 py-4">
+                            @if ($empleado->puesto)
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700/60 dark:text-slate-200">
+                                    <flux:icon.briefcase class="size-3.5 text-slate-400" />
+                                    {{ $empleado->puesto }}
+                                </span>
+                            @else
+                                <span class="text-slate-400 dark:text-slate-500">—</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-4 py-4 text-slate-600 dark:text-slate-400">{{ $empleado->telefono ?? '—' }}</td>
                         <td class="whitespace-nowrap px-4 py-4">
-                            @if ($rolEmpleado)
+                            @if (! $empleado->id_usuario)
+                                <flux:badge color="zinc" size="sm" class="!bg-zinc-100 !text-zinc-600 !font-semibold dark:!bg-zinc-700/60 dark:!text-zinc-300">
+                                    Sin acceso
+                                </flux:badge>
+                            @elseif ($rolEmpleado)
                                 <flux:badge color="amber" size="sm" class="!bg-amber-100 !text-amber-800 !font-semibold dark:!bg-amber-500/20 dark:!text-amber-400">
                                     {{ Str::headline($rolEmpleado) }}
                                 </flux:badge>
                             @else
-                                <span class="text-slate-400 dark:text-slate-500">—</span>
+                                <span class="text-slate-400 dark:text-slate-500">Sin rol</span>
                             @endif
                         </td>
                         <td class="whitespace-nowrap px-4 py-4 text-slate-700 dark:text-slate-300">
@@ -105,7 +120,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $this->esSuperAdmin() ? 10 : 9 }}" class="px-5 py-14 text-center">
+                        <td colspan="{{ $this->esSuperAdmin() ? 11 : 10 }}" class="px-5 py-14 text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <span class="flex size-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700/40">
                                     <flux:icon.users class="size-7 text-slate-400 dark:text-slate-500" />

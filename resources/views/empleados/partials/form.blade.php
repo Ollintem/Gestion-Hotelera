@@ -1,7 +1,23 @@
 @use('Illuminate\Support\Str')
 
+@php
+    /**
+     * Conserva los puestos heredados que no estén en el catálogo actual para
+     * que al editar un registro antiguo no se pierda su valor.
+     */
+    $opcionesPuesto = $puesto !== '' && ! in_array($puesto, $puestos, true)
+        ? array_merge([$puesto], $puestos)
+        : $puestos;
+
+    $opcionesPuesto = array_combine($opcionesPuesto, $opcionesPuesto);
+@endphp
+
 {{-- ======================================================
      FORMULARIO COMPARTIDO: CREAR / EDITAR EMPLEADO
+
+     El puesto laboral y el rol de acceso son conceptos distintos:
+     un camarista o un valet parking puede registrarse sin cuenta
+     de usuario y sin credenciales.
      ====================================================== --}}
 
 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -94,29 +110,36 @@
                 </div>
 
                 <div>
-                    <label for="rol" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Rol del Sistema</label>
+                    <label for="puesto" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Puesto laboral</label>
                     <x-dropdown
-                        id="rol"
-                        wire:model.blur="rol"
-                        :selected="$rol"
-                        placeholder="Sin rol asignado…"
-                        :options="$this->rolesDisponibles->mapWithKeys(fn ($rolDisponible) => [$rolDisponible->name => Str::headline($rolDisponible->name)])->all()"
+                        id="puesto"
+                        wire:model="puesto"
+                        modelo="puesto"
+                        :clave="'puesto-'.$puesto"
+                        :selected="$puesto"
+                        placeholder="Selecciona el puesto…"
+                        :options="$opcionesPuesto"
                     />
-                    <p class="mt-1.5 text-xs text-slate-500">Categoría principal del empleado. No incluye a Super Admin.</p>
-                    @error('rol')
+                    <p class="mt-1.5 text-xs text-slate-500">Área operativa del hotel. Es independiente del rol de acceso.</p>
+                    @error('puesto')
                         <p class="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div class="sm:col-span-2">
-                    <label for="correo_electronico" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Correo Electrónico</label>
+                    <label for="correo_electronico" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">
+                        Correo Electrónico
+                        @if (! $acceso_sistema)
+                            <span class="ml-1 text-xs font-normal text-slate-400">(opcional sin acceso)</span>
+                        @endif
+                    </label>
                     <div class="relative">
                         <input
                             id="correo_electronico"
                             type="email"
                             wire:model.blur="correo_electronico"
                             placeholder="empleado@hotel.com"
-                            required
+                            @required($acceso_sistema)
                             @class([$this->claseInput('correo_electronico')])
                         />
                         @if (! $errors->has('correo_electronico') && trim($correo_electronico) !== '')
@@ -153,7 +176,9 @@
                     <label for="turno" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Turno</label>
                     <x-dropdown
                         id="turno"
-                        wire:model.blur="turno"
+                        wire:model="turno"
+                        modelo="turno"
+                        :clave="'turno-'.$turno"
                         :selected="$turno"
                         placeholder="Selecciona un turno…"
                         :options="array_combine($turnos, $turnos)"
@@ -163,30 +188,19 @@
                     @enderror
                 </div>
 
-                <div>
-                    <label for="esta_activo" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Estado</label>
-                    <x-dropdown
-                        id="esta_activo"
-                        wire:model.blur="esta_activo"
-                        :selected="$esta_activo ? '1' : '0'"
-                        :options="['1' => 'Activo', '0' => 'Inactivo']"
-                    />
-                    @error('esta_activo')
-                        <p class="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
-
                 <div class="sm:col-span-2">
-                    <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-                        <div>
+                    <div class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
                             <p class="text-sm font-semibold text-slate-800 dark:text-zinc-200">Acceso al sistema</p>
                             <p class="mt-0.5 text-sm text-slate-500">
-                                {{ $acceso_sistema ? 'El empleado podrá iniciar sesión en la plataforma.' : 'El empleado no podrá iniciar sesión en la plataforma.' }}
+                                {{ $acceso_sistema
+                                    ? 'El empleado podrá iniciar sesión en la plataforma.'
+                                    : 'Solo se guardará su información administrativa, sin credenciales.' }}
                             </p>
                         </div>
 
                         <label class="inline-flex shrink-0 cursor-pointer items-center">
-                            <input type="checkbox" wire:model="acceso_sistema" class="peer sr-only" />
+                            <input type="checkbox" wire:model.live="acceso_sistema" class="peer sr-only" />
                             <span class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors duration-300 ease-out after:absolute after:left-1 after:top-1 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-300 after:ease-out peer-checked:bg-amber-500 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-amber-500 peer-focus-visible:ring-offset-1 dark:bg-slate-600"></span>
                         </label>
                     </div>
@@ -195,21 +209,49 @@
                     @enderror
                 </div>
 
+                <div>
+                    <label for="esta_activo" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Estado del empleado</label>
+                    <x-dropdown
+                        id="esta_activo"
+                        wire:model="esta_activo"
+                        modelo="esta_activo"
+                        :clave="'estado-'.($esta_activo ? '1' : '0')"
+                        :selected="$esta_activo ? '1' : '0'"
+                        :options="['1' => 'Activo', '0' => 'Inactivo']"
+                    />
+                    @error('esta_activo')
+                        <p class="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 @if ($acceso_sistema)
+                    <div>
+                        <label for="rol" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-zinc-200">Rol de acceso</label>
+                        <x-dropdown
+                            id="rol"
+                            wire:model="rol"
+                            modelo="rol"
+                            :clave="'rol-'.$rol"
+                            :selected="$rol"
+                            placeholder="Sin rol asignado…"
+                            :options="$this->rolesDisponibles->mapWithKeys(fn ($rolDisponible) => [$rolDisponible->name => Str::headline($rolDisponible->name)])->all()"
+                        />
+                        <p class="mt-1.5 text-xs text-slate-500">Permisos dentro de NovaStay. No incluye a Super Admin.</p>
+                        @error('rol')
+                            <p class="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="sm:col-span-2">
-                        <div class="animate-fade-in flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-                            <div>
-                                <label for="contrasena" class="text-sm font-semibold text-slate-800 dark:text-zinc-200">
-                                    Contraseña {{ $empleadoId ? '(opcional)' : 'inicial' }}
-                                </label>
-                                <p class="mt-0.5 text-sm text-slate-500">
-                                    @if ($empleadoId)
-                                        Déjala vacía para conservar la contraseña actual.
-                                    @else
-                                        Mínimo 8 caracteres.
-                                    @endif
-                                </p>
-                            </div>
+                        <div class="animate-fade-in rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                            <label for="contrasena" class="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                                Contraseña {{ $empleadoId ? '(opcional)' : 'inicial' }}
+                            </label>
+                            <p class="mt-0.5 text-sm text-slate-500">
+                                {{ $empleadoId
+                                    ? 'Déjala vacía para conservar la contraseña actual.'
+                                    : 'Mínimo 8 caracteres.' }}
+                            </p>
 
                             <input
                                 id="contrasena"
@@ -217,17 +259,24 @@
                                 wire:model.blur="contrasena"
                                 placeholder="••••••••"
                                 autocomplete="new-password"
-                                class="block w-44 rounded-xl border-0 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700"
+                                class="mt-3 block w-full rounded-xl border-0 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-all duration-300 ease-out placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:bg-zinc-900 dark:text-white dark:ring-zinc-700 sm:max-w-xs"
                             />
                         </div>
                         @error('contrasena')
                             <p class="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                     </div>
+                @else
+                    <div class="sm:col-span-2">
+                        <div class="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200">
+                            <flux:icon.information-circle class="mt-0.5 size-5 shrink-0" />
+                            <p>Este empleado no tendrá cuenta ni credenciales. Podrás consultarlo, editarlo y verlo en reportes administrativos.</p>
+                        </div>
+                    </div>
                 @endif
             </div>
 
-            <div class="mt-8 flex items-center justify-end gap-3">
+            <div class="mt-8 flex flex-col-reverse items-stretch justify-end gap-3 sm:flex-row sm:items-center">
                 <button
                     type="button"
                     wire:click="cerrarModal"

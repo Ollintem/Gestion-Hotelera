@@ -5,7 +5,7 @@
 <div class="mb-4 flex animate-fade-in items-center justify-between">
     <div class="flex items-center gap-2">
         <flux:icon.chart-bar class="size-5 text-slate-400 transition-colors duration-300 dark:text-slate-500" />
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">Personal por puesto</h2>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Personal por puesto laboral</h2>
     </div>
     <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Conteo en tiempo real</p>
 </div>

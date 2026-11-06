@@ -8,6 +8,8 @@
 </head>
 <body class="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen flex">
 
+    <x-flash-messages />
+
     <!-- Columna Izquierda (Formulario) -->
     <div class="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 md:p-12">
 
@@ -24,20 +26,6 @@
 
             <!-- Tarjeta Blanca Centrada -->
             <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm sm:p-10">
-
-                @if (session('aviso'))
-                    <div
-                        data-notificacion
-                        data-notificacion-duracion="3000"
-                        role="status"
-                        class="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 transition duration-200"
-                    >
-                        <span class="flex-1">{{ session('aviso') }}</span>
-                        <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
-                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                @endif
 
                 <!-- Selector de Rol (Toggle) -->
                 <div class="mb-8 flex rounded-xl bg-slate-100 p-1.5">
@@ -92,7 +80,7 @@
                         <div id="extra-clientes" class="hidden items-center">
                             <span class="text-sm text-slate-500">¿Primera vez aquí? <a href="{{ route('register') }}" class="font-semibold text-amber-600 transition hover:text-amber-700">Registrarse</a></span>
                         </div>
-                        <a href="#" class="ml-auto text-sm font-medium text-amber-600 transition hover:text-amber-700">¿Olvidaste tu contraseña?</a>
+                        <a href="{{ route('password.request') }}" class="ml-auto text-sm font-medium text-amber-600 transition hover:text-amber-700">¿Olvidaste tu contraseña?</a>
                     </div>
 
                     <button type="submit" class="mt-2 w-full rounded-xl bg-amber-500 py-3.5 font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">

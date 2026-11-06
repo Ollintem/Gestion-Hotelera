@@ -28,8 +28,11 @@
         <!-- Acciones del Usuario (Derecha) -->
         <div class="flex items-center space-x-4 shrink-0">
             @auth
-                <!-- Si ya inició sesión, muestra acceso al panel -->
-                <a href="{{ route('dashboard') }}" class="text-slate-700 font-medium hover:text-slate-900 transition text-sm sm:text-base">Administrador</a>
+                @if (auth()->user()->hasRole('cliente'))
+                    <a href="{{ route('mis-reservaciones') }}" class="text-slate-700 font-medium hover:text-slate-900 transition text-sm sm:text-base">Mi panel</a>
+                @else
+                    <a href="{{ route('dashboard') }}" class="text-slate-700 font-medium hover:text-slate-900 transition text-sm sm:text-base">Panel administrativo</a>
+                @endif
             @else
                 <!-- Si no ha iniciado sesión -->
                 <a href="{{ route('login') }}" class="text-slate-700 font-medium hover:text-slate-900 transition text-sm sm:text-base">Iniciar sesión</a>
@@ -40,19 +43,7 @@
         </div>
     </nav>
 
-    @if (session('success'))
-        <div
-            data-notificacion
-            data-notificacion-duracion="3000"
-            role="status"
-            class="fixed top-20 left-1/2 z-50 flex -translate-x-1/2 items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-100 px-5 py-3 text-sm font-medium text-emerald-900 shadow-lg transition duration-200"
-        >
-            <span class="flex-1">{{ session('success') }}</span>
-            <button type="button" data-notificacion-cerrar class="-mr-1 shrink-0 rounded-lg p-1 opacity-60 transition hover:opacity-100" aria-label="Cerrar notificación">
-                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-            </button>
-        </div>
-    @endif
+    <x-flash-messages />
 
     <!-- Sección Hero / Principal -->
     <header class="relative pt-24 pb-24 min-h-[85vh] bg-slate-900 text-white flex flex-col justify-between">

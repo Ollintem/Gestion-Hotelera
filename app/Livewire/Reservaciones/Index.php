@@ -415,9 +415,7 @@ class Index extends Component
      */
     public function huespedes(Reserva $reserva): int
     {
-        return (int) $reserva->habitaciones->sum(
-            static fn ($habitacion): int => (int) ($habitacion->tipoHabitacion?->capacidad ?? 0),
-        );
+        return $reserva->huespedes();
     }
 
     /**

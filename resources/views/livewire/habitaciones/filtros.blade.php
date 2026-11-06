@@ -11,7 +11,7 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-zinc-700 dark:bg-slate-800">
                 <button
                     type="button"
@@ -61,7 +61,7 @@
     </div>
 
     <div class="mt-6">
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div class="mb-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
             @foreach ($tarjetas as $tarjeta)
                 <button
                     type="button"
@@ -73,13 +73,13 @@
                         'ring-2 ring-slate-900 ring-offset-2 dark:ring-white dark:ring-offset-slate-900' => $tarjeta['activa'],
                     ])
                 >
-                    <div class="flex justify-between items-start">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ $tarjeta['etiqueta'] }}</span>
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center {{ $tarjeta['iconoFondo'] }} {{ $tarjeta['iconoTexto'] }}">
+                    <div class="flex justify-between items-start gap-2">
+                        <span class="min-w-0 truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $tarjeta['etiqueta'] }}</span>
+                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {{ $tarjeta['iconoFondo'] }} {{ $tarjeta['iconoTexto'] }}">
                             <flux:icon :name="$tarjeta['icono']" class="h-4 w-4" />
                         </div>
                     </div>
-                    <div class="text-4xl font-black text-slate-800 mt-2 dark:text-slate-100">{{ $tarjeta['conteo'] }}</div>
+                    <div class="mt-2 text-3xl font-black text-slate-800 sm:text-4xl dark:text-slate-100">{{ $tarjeta['conteo'] }}</div>
                 </button>
             @endforeach
         </div>

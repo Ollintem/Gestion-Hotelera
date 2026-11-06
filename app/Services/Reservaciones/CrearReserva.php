@@ -93,6 +93,7 @@ class CrearReserva
                 'check_out' => $fin->toDateString(),
                 'estado' => $estadoReserva->value,
                 'monto_total' => round($precioPorNoche * $noches, 2),
+                'num_huespedes' => $huespedes,
             ]);
 
             $reserva->habitacionesAsignadas()->create([

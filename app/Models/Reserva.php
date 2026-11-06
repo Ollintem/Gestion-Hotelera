@@ -57,6 +57,7 @@ class Reserva extends Model
         'observaciones_checkout',
         'estado',
         'monto_total',
+        'num_huespedes',
     ];
 
     /**
@@ -99,6 +100,26 @@ class Reserva extends Model
     public function totalNoches(): float
     {
         return (float) $this->check_in->copy()->startOfDay()->diffInDays($this->check_out->copy()->startOfDay());
+    }
+
+    /**
+     * Número de huéspedes capturado al reservar. Las reservaciones anteriores
+     * a la columna `num_huespedes` conservan como referencia la capacidad de
+     * las habitaciones asignadas.
+     */
+    public function huespedes(): int
+    {
+        if ($this->num_huespedes !== null) {
+            return (int) $this->num_huespedes;
+        }
+
+        $habitaciones = $this->relationLoaded('habitaciones')
+            ? $this->habitaciones
+            : $this->habitaciones()->with('tipoHabitacion')->get();
+
+        return (int) $habitaciones->sum(
+            static fn ($habitacion): int => (int) ($habitacion->tipoHabitacion?->capacidad ?? 0),
+        );
     }
 
     /**
@@ -279,6 +300,7 @@ class Reserva extends Model
             'fecha_hora_checkin' => 'datetime',
             'fecha_hora_checkout' => 'datetime',
             'monto_total' => 'decimal:2',
+            'num_huespedes' => 'integer',
         ];
     }
 

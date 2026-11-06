@@ -38,6 +38,8 @@ class Empleados extends Component
 
     public string $contrasena = '';
 
+    public string $puesto = '';
+
     public string $rol = '';
 
     public bool $acceso_sistema = false;
@@ -64,6 +66,24 @@ class Empleados extends Component
     public array $permisosUsuario = [];
 
     public const TURNOS = ['Mañana', 'Tarde', 'Noche', 'Rotativo'];
+
+    /**
+     * Puestos laborales del hotel. Son independientes del rol de acceso al
+     * sistema: un camarista o un valet parking puede existir sin credenciales.
+     *
+     * @var list<string>
+     */
+    public const PUESTOS = [
+        'Recepción',
+        'Camarista',
+        'Valet parking',
+        'Mantenimiento',
+        'Gerencia',
+        'Seguridad',
+        'Personal de apoyo',
+        'Cocina',
+        'Otro',
+    ];
 
     public function updatedBusqueda(): void
     {
@@ -103,6 +123,7 @@ class Empleados extends Component
         $datos = [
             'empleados' => $empleados,
             'turnos' => self::TURNOS,
+            'puestos' => self::PUESTOS,
         ];
 
         return match ($this->pagina) {
@@ -129,44 +150,42 @@ class Empleados extends Component
     #[Computed]
     public function kpisPuestos(): array
     {
-        $definiciones = collect([
-            ['clave' => 'recepcionista', 'etiqueta' => 'Recepción', 'icono' => 'building-office-2', 'color_fondo' => 'bg-sky-500/10 dark:bg-sky-500/20', 'color_texto' => 'text-sky-600 dark:text-sky-400'],
-            ['clave' => 'gerente', 'etiqueta' => 'Gerencia', 'icono' => 'briefcase', 'color_fondo' => 'bg-violet-500/10 dark:bg-violet-500/20', 'color_texto' => 'text-violet-600 dark:text-violet-400'],
-            ['clave' => 'limpieza', 'etiqueta' => 'Limpieza', 'icono' => 'sparkles', 'color_fondo' => 'bg-emerald-500/10 dark:bg-emerald-500/20', 'color_texto' => 'text-emerald-600 dark:text-emerald-400'],
-            ['clave' => 'seguridad', 'etiqueta' => 'Seguridad', 'icono' => 'shield-check', 'color_fondo' => 'bg-red-500/10 dark:bg-red-500/20', 'color_texto' => 'text-red-600 dark:text-red-400'],
-            ['clave' => 'mantenimiento', 'etiqueta' => 'Mantenimiento', 'icono' => 'wrench-screwdriver', 'color_fondo' => 'bg-amber-500/10 dark:bg-amber-500/20', 'color_texto' => 'text-amber-600 dark:text-amber-400'],
-        ]);
+        $estilos = [
+            ['icono' => 'building-office-2', 'color_fondo' => 'bg-sky-500/10 dark:bg-sky-500/20', 'color_texto' => 'text-sky-600 dark:text-sky-400'],
+            ['icono' => 'sparkles', 'color_fondo' => 'bg-emerald-500/10 dark:bg-emerald-500/20', 'color_texto' => 'text-emerald-600 dark:text-emerald-400'],
+            ['icono' => 'key', 'color_fondo' => 'bg-indigo-500/10 dark:bg-indigo-500/20', 'color_texto' => 'text-indigo-600 dark:text-indigo-400'],
+            ['icono' => 'wrench-screwdriver', 'color_fondo' => 'bg-amber-500/10 dark:bg-amber-500/20', 'color_texto' => 'text-amber-600 dark:text-amber-400'],
+            ['icono' => 'briefcase', 'color_fondo' => 'bg-violet-500/10 dark:bg-violet-500/20', 'color_texto' => 'text-violet-600 dark:text-violet-400'],
+            ['icono' => 'shield-check', 'color_fondo' => 'bg-red-500/10 dark:bg-red-500/20', 'color_texto' => 'text-red-600 dark:text-red-400'],
+            ['icono' => 'users', 'color_fondo' => 'bg-cyan-500/10 dark:bg-cyan-500/20', 'color_texto' => 'text-cyan-600 dark:text-cyan-400'],
+            ['icono' => 'fire', 'color_fondo' => 'bg-orange-500/10 dark:bg-orange-500/20', 'color_texto' => 'text-orange-600 dark:text-orange-400'],
+            ['icono' => 'ellipsis-horizontal-circle', 'color_fondo' => 'bg-slate-500/10 dark:bg-slate-500/20', 'color_texto' => 'text-slate-600 dark:text-slate-400'],
+        ];
 
-        $porRol = Empleado::with('usuario.roles')->get()
-            ->groupBy(fn (Empleado $empleado) => Str::lower((string) ($empleado->usuario?->roles->first()?->name ?? '')));
+        $conteos = Empleado::query()
+            ->select('puesto')
+            ->get()
+            ->groupBy(fn (Empleado $empleado) => Str::lower(trim((string) $empleado->puesto)));
 
-        $kpis = $definiciones
-            ->map(function (array $definicion) use ($porRol): array {
-                $definicion['conteo'] = $porRol->get($definicion['clave'])?->count() ?? 0;
-                unset($definicion['clave']);
+        $kpis = collect(self::PUESTOS)
+            ->values()
+            ->map(function (string $puesto, int $indice) use ($conteos, $estilos): array {
+                $estilo = $estilos[$indice] ?? $estilos[0];
 
-                return $definicion;
+                return [
+                    'etiqueta' => $puesto,
+                    'icono' => $estilo['icono'],
+                    'conteo' => $conteos->get(Str::lower($puesto))?->count() ?? 0,
+                    'color_fondo' => $estilo['color_fondo'],
+                    'color_texto' => $estilo['color_texto'],
+                ];
             });
 
-        $otros = $porRol
-            ->filter(fn ($empleados, string $clave) => $clave !== '' && ! $definiciones->contains('clave', $clave))
-            ->sum->count();
-
-        if ($otros > 0) {
-            $kpis->push([
-                'etiqueta' => 'Otros puestos',
-                'icono' => 'users',
-                'conteo' => $otros,
-                'color_fondo' => 'bg-slate-500/10 dark:bg-slate-500/20',
-                'color_texto' => 'text-slate-600 dark:text-slate-400',
-            ]);
-        }
-
-        $sinAsignar = $porRol->get('')?->count() ?? 0;
+        $sinAsignar = $conteos->get('')?->count() ?? 0;
 
         if ($sinAsignar > 0) {
             $kpis->push([
-                'etiqueta' => 'Sin asignar',
+                'etiqueta' => 'Sin puesto',
                 'icono' => 'user-minus',
                 'conteo' => $sinAsignar,
                 'color_fondo' => 'bg-zinc-400/10 dark:bg-zinc-400/20',
@@ -309,6 +328,7 @@ class Empleados extends Component
             'apellidos',
             'correo_electronico',
             'contrasena',
+            'puesto',
             'rol',
             'telefono',
             'salario',
@@ -331,10 +351,11 @@ class Empleados extends Component
         $this->apellidos = $empleado->apellidos;
         $this->correo_electronico = $empleado->correo_electronico ?? $empleado->usuario?->email ?? '';
         $this->telefono = $empleado->telefono ?? '';
+        $this->puesto = $empleado->puesto ?? '';
         $this->salario = (string) ($empleado->salario ?? '');
         $this->turno = $empleado->turno ?? '';
         $this->esta_activo = (bool) $empleado->esta_activo;
-        $this->acceso_sistema = (bool) $empleado->id_usuario;
+        $this->acceso_sistema = (bool) $empleado->id_usuario && (bool) ($empleado->usuario?->activo ?? true);
         $rolActual = $empleado->usuario?->roles->first()?->name ?? '';
         $this->rol = $rolActual === 'super-admin' ? '' : $rolActual;
         $this->contrasena = '';
@@ -352,6 +373,7 @@ class Empleados extends Component
             'apellidos',
             'correo_electronico',
             'contrasena',
+            'puesto',
             'rol',
             'telefono',
             'salario',
@@ -369,8 +391,9 @@ class Empleados extends Component
         $datos = [
             'nombre' => trim($this->nombre),
             'apellidos' => trim($this->apellidos),
-            'correo_electronico' => $this->correo_electronico,
+            'correo_electronico' => filled($this->correo_electronico) ? trim($this->correo_electronico) : null,
             'telefono' => $this->telefono ?: null,
+            'puesto' => trim($this->puesto),
             'salario' => $this->salario !== '' ? $this->salario : null,
             'turno' => $this->turno ?: null,
             'esta_activo' => $this->esta_activo,
@@ -380,8 +403,9 @@ class Empleados extends Component
             $usuario = $this->sincronizarUsuario();
             $datos['id_usuario'] = $usuario->id;
         } elseif ($this->empleadoId) {
+            // Se conserva el vínculo con la cuenta para poder reactivarla más
+            // adelante sin crear un usuario duplicado con el mismo correo.
             $this->revocarAccesoUsuario();
-            $datos['id_usuario'] = null;
         }
 
         if ($this->empleadoId) {
@@ -403,8 +427,14 @@ class Empleados extends Component
         $rules = [
             'nombre' => ['required', 'string', 'max:100'],
             'apellidos' => ['required', 'string', 'max:100'],
-            'correo_electronico' => ['required', 'email', 'max:255'],
+            'correo_electronico' => [
+                $this->acceso_sistema ? 'required' : 'nullable',
+                'email',
+                'max:255',
+                Rule::unique('empleados', 'correo_electronico')->ignore($this->empleadoId, 'id_empleado'),
+            ],
             'telefono' => ['nullable', 'string', 'max:20'],
+            'puesto' => ['required', 'string', 'max:100'],
             'salario' => ['nullable', 'numeric', 'min:0'],
             'turno' => ['nullable', Rule::in(self::TURNOS)],
             'rol' => ['nullable', Rule::exists('roles', 'name'), Rule::notIn(['super-admin'])],
@@ -419,6 +449,10 @@ class Empleados extends Component
         if ($this->acceso_sistema) {
             $rules['correo_electronico'][] = Rule::unique('users', 'email')
                 ->ignore($this->idUsuarioVinculado() ?? 0);
+
+            if ($this->rol === '' && ! $this->usuarioVinculadoEsSuperAdmin()) {
+                $rules['rol'][] = 'required';
+            }
         }
 
         return $rules;
@@ -446,6 +480,16 @@ class Empleados extends Component
         return $this->empleadoId
             ? Empleado::where('id_empleado', $this->empleadoId)->value('id_usuario')
             : null;
+    }
+
+    /**
+     * El rol Super Admin se conserva aunque el formulario no lo muestre.
+     */
+    protected function usuarioVinculadoEsSuperAdmin(): bool
+    {
+        $id = $this->idUsuarioVinculado();
+
+        return $id !== null && User::whereKey($id)->first()?->hasRole('super-admin') === true;
     }
 
     /**
@@ -505,8 +549,20 @@ class Empleados extends Component
     {
         $id = $this->idUsuarioVinculado();
 
-        if ($id) {
-            User::whereKey($id)->update(['activo' => false]);
+        if ($id === null) {
+            return;
+        }
+
+        $usuario = User::find($id);
+
+        if ($usuario === null) {
+            return;
+        }
+
+        $usuario->forceFill(['activo' => false])->save();
+
+        if (! $usuario->hasRole('super-admin')) {
+            $usuario->syncRoles([]);
         }
     }
 
@@ -516,6 +572,10 @@ class Empleados extends Component
 
         $empleado = Empleado::where('id_empleado', $id)->firstOrFail();
         $empleado->update(['esta_activo' => ! $empleado->esta_activo]);
+
+        if ($empleado->id_usuario) {
+            User::whereKey($empleado->id_usuario)->update(['activo' => $empleado->esta_activo]);
+        }
 
         $this->mensajeExito = $empleado->esta_activo
             ? 'Empleado activado correctamente.'

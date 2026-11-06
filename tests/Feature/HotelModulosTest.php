@@ -277,6 +277,7 @@ test('employees can be created with a system account, hashed password and role',
         ->set('nombre', 'Jorge')
         ->set('apellidos', 'Ramos')
         ->set('correo_electronico', 'jorge.ramos@example.com')
+        ->set('puesto', 'Recepción')
         ->set('contrasena', 'secret123')
         ->set('rol', 'recepcionista')
         ->set('telefono', '5512345678')
@@ -314,6 +315,7 @@ test('employees without system access are registered without a user account', fu
         ->set('nombre', 'Laura')
         ->set('apellidos', 'Ruiz')
         ->set('correo_electronico', 'laura.ruiz@example.com')
+        ->set('puesto', 'Camarista')
         ->set('acceso_sistema', false)
         ->call('guardar')
         ->assertHasNoErrors()
@@ -368,6 +370,7 @@ test('employees cannot be created with the super-admin role', function () {
         ->set('nombre', 'Iván')
         ->set('apellidos', 'Soto')
         ->set('correo_electronico', 'ivan.soto@example.com')
+        ->set('puesto', 'Recepción')
         ->set('contrasena', 'secret123')
         ->set('rol', 'super-admin')
         ->set('acceso_sistema', true)
@@ -390,6 +393,7 @@ test('employees can be created as inactive and with a valid shift', function () 
         ->set('nombre', 'Carla')
         ->set('apellidos', 'Núñez')
         ->set('correo_electronico', 'carla.nunez@example.com')
+        ->set('puesto', 'Personal de apoyo')
         ->set('turno', 'Noche')
         ->set('esta_activo', '0')
         ->set('acceso_sistema', false)
@@ -416,6 +420,7 @@ test('the employee form only accepts the predefined shifts', function () {
         ->set('nombre', 'Roberto')
         ->set('apellidos', 'Díaz')
         ->set('correo_electronico', 'roberto.diaz@example.com')
+        ->set('puesto', 'Mantenimiento')
         ->set('turno', '8:00 - 16:00')
         ->set('acceso_sistema', false)
         ->call('guardar')
@@ -440,6 +445,7 @@ test('a super-admin can edit the employee personal data and its system role', fu
         'id_usuario' => $usuario->id,
         'puesto' => 'Recepcionista',
         'telefono' => '5512345678',
+        'puesto' => 'Recepción',
         'turno' => 'Tarde',
         'salario' => 9500.50,
     ]);
@@ -913,7 +919,7 @@ test('the employees table shows the permissions column with a configure button',
         ->assertSee('Configurar');
 });
 
-test('the employee form no longer shows the Puesto field', function () {
+test('the employee form keeps the job position separate from the system role', function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 
     $admin = User::factory()->create();
@@ -922,10 +928,11 @@ test('the employee form no longer shows the Puesto field', function () {
     Livewire::actingAs($admin)
         ->test(Empleados::class)
         ->call('crear')
-        ->assertDontSee('Puesto');
+        ->assertSee('Puesto laboral')
+        ->assertSee('Rol de acceso');
 });
 
-test('the employees module shows dynamic KPI cards grouped by position', function () {
+test('the employees module shows dynamic KPI cards grouped by job position', function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 
     $admin = User::factory()->create();
@@ -935,38 +942,37 @@ test('the employees module shows dynamic KPI cards grouped by position', functio
         $usuario = User::factory()->create(['email' => $email]);
         $usuario->assignRole('recepcionista');
         Empleado::create([
-            'nombre' => 'Recepcionista',
+            'nombre' => 'Recepción',
             'apellidos' => Str::after($email, '@'),
             'correo_electronico' => $email,
             'id_usuario' => $usuario->id,
+            'puesto' => 'Recepción',
             'esta_activo' => true,
         ]);
     }
 
-    $limpieza = User::factory()->create(['email' => 'clean.team@example.com']);
-    $limpieza->assignRole('limpieza');
     Empleado::create([
-        'nombre' => 'Limpieza',
+        'nombre' => 'Camarista',
         'apellidos' => 'Turno',
-        'correo_electronico' => $limpieza->email,
-        'id_usuario' => $limpieza->id,
+        'correo_electronico' => 'camarista@example.com',
+        'puesto' => 'Camarista',
         'esta_activo' => true,
     ]);
 
     Empleado::create([
         'nombre' => 'Sín',
-        'apellidos' => 'Rol',
-        'correo_electronico' => 'sin.rol@example.com',
+        'apellidos' => 'Puesto',
+        'correo_electronico' => 'sin.puesto@example.com',
         'esta_activo' => true,
     ]);
 
     $componente = Livewire::actingAs($admin)->test(Empleados::class);
 
     $componente
-        ->assertSee('Personal por puesto')
+        ->assertSee('Personal por puesto laboral')
         ->assertSee('Recepción')
-        ->assertSee('Limpieza')
-        ->assertSee('Sin asignar');
+        ->assertSee('Camarista')
+        ->assertSee('Sin puesto');
 
     $html = $componente->html();
 
@@ -990,7 +996,7 @@ test('public registration creates a user with the cliente role and a linked cust
         'telefono' => '5512345678',
         'password' => 'secret123',
         'password_confirmation' => 'secret123',
-    ])->assertRedirect(route('home'));
+    ])->assertRedirect(route('mis-reservaciones'));
 
     $usuario = User::where('email', 'maria.gonzalez@example.com')->first();
 
@@ -1120,6 +1126,7 @@ test('a client can confirm a reservation and it is stored with its price details
     expect($reserva)->not->toBeNull()
         ->and($reserva->user_id)->toBe($clienteUsuario->id)
         ->and($reserva->estado)->toBe('Pendiente')
+        ->and($reserva->num_huespedes)->toBe(4)
         ->and($reserva->monto_total)->toBe('4998.00');
 
     expect(ReservaHabitacion::where('reserva_id', $reserva->id)->exists())->toBeTrue();

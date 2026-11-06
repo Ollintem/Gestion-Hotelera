@@ -132,6 +132,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:cliente')
         ->name('mis-reservaciones');
 
+    Route::patch('/mi-perfil', [EstadoCuentaController::class, 'actualizarPerfil'])
+        ->middleware('role:cliente')
+        ->name('cliente.perfil.update');
+
     Route::get('/mis-reservaciones/{reserva}/estado-cuenta', [EstadoCuentaController::class, 'descargar'])
         ->middleware('role:cliente')
         ->name('estado-cuenta.pdf');

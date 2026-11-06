@@ -35,16 +35,25 @@ class LoginController extends Controller implements HasMiddleware
     {
         $apartado = $request->input('role');
 
-        if ($apartado === 'personal' && $user->hasRole('cliente')) {
-            $this->guard()->logout();
+        $esCliente = $user->hasRole('cliente');
 
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        $accesoIncorrecto = ($apartado === 'personal' && $esCliente)
+            || ($apartado === 'clientes' && ! $esCliente);
 
-            throw ValidationException::withMessages([
-                $this->username() => 'El usuario no está registrado',
-            ]);
+        if (! $accesoIncorrecto) {
+            return;
         }
+
+        $this->guard()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        throw ValidationException::withMessages([
+            $this->username() => $apartado === 'clientes'
+                ? 'Este correo no está registrado como cliente.'
+                : 'El usuario no está registrado',
+        ]);
     }
 
     protected function redirectTo(): string

@@ -411,13 +411,13 @@ test('las tarjetas KPI usan la rejilla y el contrato visual acordado', function 
         ])
         ->html();
 
-    // Rejilla de 6 columnas.
-    expect($html)->toContain('grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8')
+    // Rejilla de 6 columnas adaptable a móvil.
+    expect($html)->toContain('mb-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6')
         // Estructura interna de la tarjeta.
         ->toContain('flex justify-between items-start')
-        ->toContain('text-[10px] font-bold text-slate-400 uppercase tracking-wider')
-        ->toContain('w-8 h-8 rounded-full flex items-center justify-center')
-        ->toContain('text-4xl font-black text-slate-800 mt-2')
+        ->toContain('text-[10px] font-bold uppercase tracking-wider text-slate-400')
+        ->toContain('flex h-8 w-8 shrink-0 items-center justify-center rounded-full')
+        ->toContain('mt-2 text-3xl font-black text-slate-800 sm:text-4xl')
         // Interacción: elevación y presión.
         ->toContain('hover:shadow-md')
         ->toContain('hover:-translate-y-1')
